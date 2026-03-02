@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { ArrowLeftIcon, ExternalLinkIcon, PhoneIcon } from "lucide-react"
+import Link from "next/link";
+import { ArrowLeftIcon, ExternalLinkIcon, PhoneIcon } from "lucide-react";
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -11,8 +11,8 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 /** 阶段四「离开或继续」：离开路径清晰、支持资源明显、收尾温和无 stigma */
 const SUPPORT_RESOURCES = [
@@ -20,6 +20,7 @@ const SUPPORT_RESOURCES = [
     label: "全国 24 小时热线：010-12345678",
     href: "tel:010-12345678",
     icon: PhoneIcon,
+    external: false,
   },
   {
     label: "某机构名称",
@@ -33,7 +34,7 @@ const SUPPORT_RESOURCES = [
     external: true,
     icon: ExternalLinkIcon,
   },
-] as const
+] as const;
 
 export function LeaveOrContinuePage() {
   return (
@@ -71,10 +72,10 @@ export function LeaveOrContinuePage() {
               </p>
               <ul className="space-y-1.5">
                 {SUPPORT_RESOURCES.map((item) => {
-                  const Icon = item.icon
+                  const Icon = item.icon;
                   return (
                     <li key={item.label}>
-                      <a
+                      <Link
                         href={item.href}
                         target={item.external ? "_blank" : undefined}
                         rel={item.external ? "noopener noreferrer" : undefined}
@@ -85,9 +86,9 @@ export function LeaveOrContinuePage() {
                         {item.external && (
                           <ExternalLinkIcon className="size-3.5 shrink-0 opacity-60" />
                         )}
-                      </a>
+                      </Link>
                     </li>
-                  )
+                  );
                 })}
               </ul>
             </div>
@@ -100,5 +101,5 @@ export function LeaveOrContinuePage() {
         </Card>
       </main>
     </div>
-  )
+  );
 }

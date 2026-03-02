@@ -1,7 +1,11 @@
 {
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "main": ".open-next/worker.js",
   "name": "echo-agents",
   "compatibility_date": "2026-03-02",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
-    "directory": "./out",
-  },
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  }
 }

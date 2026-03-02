@@ -163,13 +163,20 @@ export function ConversationPage({
         </div>
       </div>
 
-      {/* 页脚：支持资源 · 返回列表 */}
+      {/* 页脚：返回列表 · 结束对话 · 支持资源 */}
       <footer className="shrink-0 border-t px-4 py-2 text-center text-xs text-muted-foreground">
         <Link
           href="/guests"
           className="underline-offset-4 hover:underline"
         >
           返回列表
+        </Link>
+        <span className="mx-2">·</span>
+        <Link
+          href="/guests/leave"
+          className="underline-offset-4 hover:underline"
+        >
+          结束对话
         </Link>
         <span className="mx-2">·</span>
         <span>支持资源见顶部入口</span>

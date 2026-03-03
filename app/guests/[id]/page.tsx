@@ -11,5 +11,7 @@ export default async function GuestChatPage({ params }: Props) {
   const guest = GUESTS.find((g) => g.id === id)
   if (!guest) notFound()
 
-  return <ConversationPage guestName={guest.name} />
+  return (
+    <ConversationPage guestId={guest.id} guestName={guest.name} />
+  )
 }

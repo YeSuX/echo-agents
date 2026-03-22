@@ -7,6 +7,7 @@ import { ArrowLeftIcon, MenuIcon, SendIcon } from "lucide-react"
 import { CompanionLayout } from "@/components/companion-layout"
 import { QuickReplies } from "@/components/quick-replies"
 import { SelfHelpSidebar } from "@/components/self-help-sidebar"
+import { AgentMarkdown } from "@/components/agent-markdown"
 import { SupportResourcesDropdown } from "@/components/support-resources-dropdown"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -291,6 +292,7 @@ export function CompanionConversationPage() {
             {isSending && (
               <AgentBubble
                 content={streamingContent || "…"}
+                streaming
                 className={cn(streamingContent && "opacity-90")}
               />
             )}
@@ -349,10 +351,12 @@ export function CompanionConversationPage() {
 function AgentBubble({
   content,
   isFallback,
+  streaming,
   className,
 }: {
   content: string
   isFallback?: boolean
+  streaming?: boolean
   className?: string
 }) {
   return (
@@ -368,7 +372,11 @@ function AgentBubble({
         <p className="mb-0.5 font-medium text-muted-foreground">
           {COMPANION_AGENT_LABEL}
         </p>
-        <p className="whitespace-pre-wrap">{content}</p>
+        {streaming ? (
+          <p className="whitespace-pre-wrap">{content}</p>
+        ) : (
+          <AgentMarkdown content={content} />
+        )}
       </div>
     </div>
   )

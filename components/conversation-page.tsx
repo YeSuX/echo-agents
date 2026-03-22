@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ArrowLeftIcon, SendIcon } from "lucide-react"
 
+import { AgentMarkdown } from "@/components/agent-markdown"
 import { SupportResourcesDropdown } from "@/components/support-resources-dropdown"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -286,6 +287,7 @@ export function ConversationPage({
               <AgentBubble
                 guestName={guestName}
                 content={streamingContent || "..."}
+                streaming
                 className={cn(streamingContent && "opacity-90")}
               />
             )}
@@ -340,11 +342,13 @@ function AgentBubble({
   guestName,
   content,
   isFallback,
+  streaming,
   className,
 }: {
   guestName: string
   content: string
   isFallback?: boolean
+  streaming?: boolean
   className?: string
 }) {
   return (
@@ -360,7 +364,11 @@ function AgentBubble({
         <p className="mb-0.5 font-medium text-muted-foreground">
           {guestName}
         </p>
-        <p className="whitespace-pre-wrap">{content}</p>
+        {streaming ? (
+          <p className="whitespace-pre-wrap">{content}</p>
+        ) : (
+          <AgentMarkdown content={content} />
+        )}
       </div>
     </div>
   )

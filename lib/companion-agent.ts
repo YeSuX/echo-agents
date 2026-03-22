@@ -12,12 +12,21 @@ const CRISIS_FALLBACK =
 
 const LEARN_GUIDE = `若用户需要系统性阅读，可温和引导至站内科普页：/learn（定义与分类）、/learn#law（法律常识相关模块）。不要说教式堆砌链接，一两句即可。`
 
+const OUTPUT_MARKDOWN = `## 输出格式（必须遵守）
+用户界面会把你回复渲染为 Markdown。请使用 GitHub 风格 Markdown：
+- 用空行分段；列表用 - 或 1.；重点用 **加粗**；术语或短名可用 \`行内代码\`。
+- 需要分层时用 ### 小标题（不要用单个 # 一级标题）。
+- 需要时可使用表格（GFM）；外部链接用 [文字](https://...) 形式。
+- 危机兜底等必须逐字固定的段落仍用纯文本即可。`
+
 export function getCompanionSystemPrompt(matchedCaseSummaries: string): string {
   return `${COMPANION_VOICE}
 
 ${SAFETY_RULES}
 
 ${LEARN_GUIDE}
+
+${OUTPUT_MARKDOWN}
 
 ## 可参考的匿名成功案例摘要（仅作叙述参考，勿逐字复述长段）
 ${matchedCaseSummaries || "（当前无匹配摘要，仅提供通用支持与路径说明）"}

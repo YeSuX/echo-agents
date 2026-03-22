@@ -6,14 +6,44 @@ import { isJsonRecord, parseJson, type Json } from "@/lib/json-parse"
 import { matchCases } from "@/lib/match-cases"
 import { getSelfHelpEntryById } from "@/data/self-help-catalog"
 import { detectTakedownIntent } from "@/lib/takedown-intent"
+import { normalizeKimiBaseUrl } from "@/lib/kimi-client-config"
 
 const KIMI_MODEL = "kimi-k2.5"
 
-function getKimiClient() {
-  const apiKey = process.env.KIMI_API_KEY
-  const baseURL = process.env.KIMI_BASE_URL ?? "https://api.moonshot.cn/v1"
-  if (!apiKey) throw new Error("KIMI_API_KEY is not set")
-  return new OpenAI({ apiKey, baseURL })
+function tryCreateKimiClient(
+  root: { readonly [k: string]: Json },
+): { client: OpenAI } | { status: number; error: string } {
+  const keyRaw = root.kimiApiKey
+  const keyFromBody = typeof keyRaw === "string" ? keyRaw.trim() : ""
+  const apiKey =
+    keyFromBody.length > 0 ? keyFromBody : (process.env.KIMI_API_KEY ?? "")
+  if (apiKey.length === 0) {
+    return {
+      status: 400,
+      error:
+        "缺少 API Key：请在界面「Kimi 接口配置」中填写，或配置环境变量 KIMI_API_KEY",
+    }
+  }
+
+  const urlRaw = root.kimiBaseUrl
+  const urlFromBody = typeof urlRaw === "string" ? urlRaw.trim() : ""
+  let baseURL: string
+  if (urlFromBody.length > 0) {
+    const n = normalizeKimiBaseUrl(urlFromBody)
+    if (n === null) {
+      return {
+        status: 400,
+        error: "kimiBaseUrl 须为 https URL（例如 https://api.moonshot.cn/v1）",
+      }
+    }
+    baseURL = n
+  } else {
+    const env = (process.env.KIMI_BASE_URL ?? "").trim()
+    baseURL =
+      env.length > 0 ? env.replace(/\/$/, "") : "https://api.moonshot.cn/v1"
+  }
+
+  return { client: new OpenAI({ apiKey, baseURL }) }
 }
 
 type ChatRole = "user" | "assistant"
@@ -90,6 +120,15 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const kimiResolved = tryCreateKimiClient(j)
+    if ("error" in kimiResolved) {
+      return new Response(JSON.stringify({ error: kimiResolved.error }), {
+        status: kimiResolved.status,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+    const client = kimiResolved.client
+
     const { mode, guestId, messages } = parsed
     const lastUser = lastUserContent(messages)
 
@@ -100,8 +139,6 @@ export async function POST(req: NextRequest) {
     } else {
       systemPrompt = getGuestSystemPrompt(guestId)
     }
-
-    const client = getKimiClient()
 
     const stream = await client.chat.completions.create({
       model: KIMI_MODEL,

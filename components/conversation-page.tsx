@@ -5,6 +5,10 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { ArrowLeftIcon, SendIcon } from "lucide-react"
 
 import { AgentMarkdown } from "@/components/agent-markdown"
+import {
+  KimiConfigTrigger,
+  useKimiConfig,
+} from "@/components/kimi-config-provider"
 import { SupportResourcesDropdown } from "@/components/support-resources-dropdown"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -65,6 +69,7 @@ export function ConversationPage({
   guestName,
   initialMessages = [],
 }: ConversationPageProps) {
+  const { kimiRequestFields } = useKimiConfig()
   const [input, setInput] = useState("")
   const [messages, setMessages] = useState<ConversationMessage[]>(() => {
     if (initialMessages.length > 0) return initialMessages
@@ -117,7 +122,11 @@ export function ConversationPage({
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ guestId, messages: kimiMessages }),
+        body: JSON.stringify({
+          guestId,
+          messages: kimiMessages,
+          ...kimiRequestFields,
+        }),
         signal,
       })
 
@@ -191,7 +200,7 @@ export function ConversationPage({
       setIsSending(false)
       abortRef.current = null
     }
-  }, [guestId, input, isSending, messages])
+  }, [guestId, input, isSending, messages, kimiRequestFields])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -231,6 +240,7 @@ export function ConversationPage({
             <span className="text-xs">插画</span>
           </div>
         </div>
+        <KimiConfigTrigger />
         <SupportResourcesDropdown />
       </header>
 

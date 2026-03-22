@@ -33,8 +33,10 @@ bun run lint
 
 复制 `.env.example` 为 `.env` 并填写：
 
-- `KIMI_API_KEY`：Moonshot Kimi API Key（必填，对话接口）
+- `KIMI_API_KEY`：Moonshot Kimi API Key（对话接口需要；也可仅在浏览器弹窗中配置）
 - `KIMI_BASE_URL`：可选，默认 `https://api.moonshot.cn/v1`
+
+在 **同伴对话** 与 **嘉宾对话** 页顶栏点击 **齿轮按钮**，可打开 shadcn `Dialog`，将 `KIMI_API_KEY` / `KIMI_BASE_URL` 存入 **localStorage**；调用 `/api/chat` 时会随请求体带上，**优先于**服务端环境变量。点击「清除本地配置」后恢复为仅使用 `.env`。
 
 ## 主要路由
 

@@ -8,6 +8,10 @@ import { CompanionLayout } from "@/components/companion-layout"
 import { QuickReplies } from "@/components/quick-replies"
 import { SelfHelpSidebar } from "@/components/self-help-sidebar"
 import { AgentMarkdown } from "@/components/agent-markdown"
+import {
+  KimiConfigTrigger,
+  useKimiConfig,
+} from "@/components/kimi-config-provider"
 import { SupportResourcesDropdown } from "@/components/support-resources-dropdown"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -64,6 +68,7 @@ function persistStoryDraft(messages: ConversationMessage[]) {
 }
 
 export function CompanionConversationPage() {
+  const { kimiRequestFields } = useKimiConfig()
   const [input, setInput] = useState("")
   const [messages, setMessages] = useState<ConversationMessage[]>([
     { id: "opening", role: "agent", content: COMPANION_OPENING },
@@ -109,7 +114,11 @@ export function CompanionConversationPage() {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode: "companion", messages: kimiMessages }),
+          body: JSON.stringify({
+            mode: "companion",
+            messages: kimiMessages,
+            ...kimiRequestFields,
+          }),
           signal,
         })
 
@@ -185,7 +194,7 @@ export function CompanionConversationPage() {
         abortRef.current = null
       }
     },
-    [isSending, messages],
+    [isSending, messages, kimiRequestFields],
   )
 
   const handleSend = useCallback(() => {
@@ -258,6 +267,7 @@ export function CompanionConversationPage() {
               {sidebar}
             </SheetContent>
           </Sheet>
+          <KimiConfigTrigger />
           <SupportResourcesDropdown />
         </div>
       </header>

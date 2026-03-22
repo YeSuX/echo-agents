@@ -1,13 +1,21 @@
 "use client"
 
 import Link from "next/link"
-import { useRef, useEffect, useState, useCallback } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { ArrowLeftIcon, SendIcon } from "lucide-react"
 
 import { SupportResourcesDropdown } from "@/components/support-resources-dropdown"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  deriveSelfHelpFromConversation,
+  mergeSelfHelpDeduped,
+  type SelfHelpPanelItem,
+} from "@/lib/derive-self-help"
+import { parseFetchErrorBody } from "@/lib/json-parse"
+import { sseItemsToPanelItems } from "@/lib/sse-self-help"
+import { parseSseDataLine } from "@/lib/sse-chat"
 import { cn } from "@/lib/utils"
 
 const AGENT_OPENING =
@@ -18,18 +26,15 @@ export type ConversationMessage = {
   id: string
   role: MessageRole
   content: string
-  /** 兜底/边界回复：温和引导回已分享内容 */
   isFallback?: boolean
 }
 
 type ConversationPageProps = {
   guestId: string
   guestName: string
-  /** 初始消息列表（含首条引导），后续由输入提交追加 */
   initialMessages?: ConversationMessage[]
 }
 
-/** 将前端消息列表转为 Kimi API 所需的 messages（仅 user/assistant，不含 system） */
 function toKimiMessages(messages: ConversationMessage[]) {
   return messages
     .filter((m) => m.role === "user" || m.role === "agent")
@@ -39,20 +44,21 @@ function toKimiMessages(messages: ConversationMessage[]) {
     }))
 }
 
-/** 解析 SSE data 行：{ content: string } 或 [DONE] */
-function parseStreamLine(line: string): { content?: string; done?: boolean } {
-  const trimmed = line.trim()
-  if (trimmed === "data: [DONE]") return { done: true }
-  if (!trimmed.startsWith("data: ")) return {}
-  try {
-    const json = JSON.parse(trimmed.slice(6)) as { content?: string }
-    return { content: json.content }
-  } catch {
-    return {}
-  }
+function conversationUserText(messages: ConversationMessage[]): string {
+  return messages
+    .filter((m) => m.role === "user")
+    .map((m) => m.content)
+    .join("\n")
 }
 
-/** 对话了解故事页：顶部栏 + 可滚动消息区 + 吸底输入区，支持资源常驻；接入 Kimi Agent 流式回复 */
+function persistStoryDraft(messages: ConversationMessage[]) {
+  const draft = messages
+    .filter((m) => m.role === "user")
+    .map((m) => m.content)
+    .join("\n\n")
+  sessionStorage.setItem("companion-story-draft", draft)
+}
+
 export function ConversationPage({
   guestId,
   guestName,
@@ -69,6 +75,9 @@ export function ConversationPage({
       },
     ]
   })
+  const messagesRef = useRef(messages)
+  messagesRef.current = messages
+  const [selfHelpItems, setSelfHelpItems] = useState<SelfHelpPanelItem[]>([])
   const [isSending, setIsSending] = useState(false)
   const [streamingContent, setStreamingContent] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -89,14 +98,19 @@ export function ConversationPage({
       role: "user",
       content: text,
     }
-    setMessages((prev) => [...prev, userMsg])
+    const nextMessages = [...messages, userMsg]
+    setMessages(nextMessages)
+    const derived = deriveSelfHelpFromConversation(
+      conversationUserText(nextMessages),
+    )
+    setSelfHelpItems((prev) => mergeSelfHelpDeduped(prev, derived))
     setIsSending(true)
     setStreamingContent("")
 
     abortRef.current = new AbortController()
     const signal = abortRef.current.signal
 
-    const kimiMessages = toKimiMessages([...messages, userMsg])
+    const kimiMessages = toKimiMessages(nextMessages)
 
     try {
       const res = await fetch("/api/chat", {
@@ -107,10 +121,8 @@ export function ConversationPage({
       })
 
       if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}))
-        throw new Error(
-          (errBody as { error?: string }).error || `请求失败 ${res.status}`
-        )
+        const errText = await res.text()
+        throw new Error(parseFetchErrorBody(errText) ?? `请求失败 ${res.status}`)
       }
 
       const reader = res.body?.getReader()
@@ -119,28 +131,40 @@ export function ConversationPage({
 
       let fullContent = ""
       let buffer = ""
+      let sawDone = false
 
-      while (true) {
+      outer: while (true) {
         const { done, value } = await reader.read()
         if (done) break
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split("\n\n")
         buffer = lines.pop() ?? ""
         for (const line of lines) {
-          const { content, done: streamDone } = parseStreamLine(line)
-          if (streamDone) break
-          if (content) {
-            fullContent += content
+          const parsed = parseSseDataLine(line)
+          if (parsed.kind === "done") {
+            sawDone = true
+            break outer
+          }
+          if (parsed.kind === "content") {
+            fullContent += parsed.content
             setStreamingContent(fullContent)
+          }
+          if (parsed.kind === "self_help") {
+            const panel = sseItemsToPanelItems(parsed.items)
+            setSelfHelpItems((prev) => mergeSelfHelpDeduped(prev, panel))
           }
         }
       }
 
-      // 收尾可能留在 buffer 里的行
-      const { content } = parseStreamLine(buffer)
-      if (content) {
-        fullContent += content
+      if (!sawDone) {
+        const tail = parseSseDataLine(buffer)
+        if (tail.kind === "content") fullContent += tail.content
+        if (tail.kind === "self_help") {
+          const panel = sseItemsToPanelItems(tail.items)
+          setSelfHelpItems((prev) => mergeSelfHelpDeduped(prev, panel))
+        }
       }
+
       setStreamingContent("")
       setMessages((prev) => [
         ...prev,
@@ -151,7 +175,7 @@ export function ConversationPage({
         },
       ])
     } catch (e) {
-      if ((e as Error).name === "AbortError") return
+      if (e instanceof Error && e.name === "AbortError") return
       setError(e instanceof Error ? e.message : "发送失败，请重试")
       setMessages((prev) => [
         ...prev,
@@ -171,13 +195,12 @@ export function ConversationPage({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
-      handleSend()
+      void handleSend()
     }
   }
 
   return (
     <div className="flex h-dvh flex-col bg-background">
-      {/* 顶部栏：返回 + 嘉宾标识 + 支持资源 */}
       <header className="flex shrink-0 items-center justify-between gap-3 border-b bg-background px-4 py-3">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <Button variant="ghost" size="icon" className="shrink-0" asChild>
@@ -188,7 +211,16 @@ export function ConversationPage({
           <div className="min-w-0 flex-1">
             <p className="truncate font-medium">与「{guestName}」对话</p>
             <p className="truncate text-xs text-muted-foreground">
-              通过问答了解 ta 的故事
+              <Link href="/learn" className="underline-offset-2 hover:underline">
+                科普
+              </Link>
+              <span className="mx-1.5">·</span>
+              <Link
+                href="/stories"
+                className="underline-offset-2 hover:underline"
+              >
+                案例
+              </Link>
             </p>
           </div>
           <div
@@ -201,7 +233,6 @@ export function ConversationPage({
         <SupportResourcesDropdown />
       </header>
 
-      {/* 错误条 */}
       {error && (
         <div
           className="shrink-0 border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-sm text-destructive"
@@ -211,9 +242,33 @@ export function ConversationPage({
         </div>
       )}
 
-      {/* 对话区 */}
+      {selfHelpItems.length > 0 && (
+        <div className="shrink-0 border-b bg-muted/30 px-4 py-2">
+          <p className="mb-1 text-xs font-medium text-muted-foreground">
+            推荐资源
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {selfHelpItems.map((item) => (
+              <a
+                key={item.id}
+                href={item.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full border bg-background px-2.5 py-1 text-xs underline-offset-2 hover:underline"
+              >
+                {item.title}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
       <ScrollArea className="min-h-0 flex-1">
-        <main className="flex flex-col px-4 py-4">
+        <main
+          className="flex flex-col px-4 py-4"
+          aria-live="polite"
+          aria-relevant="additions"
+        >
           <div className="mx-auto w-full max-w-2xl space-y-4">
             {messages.map((msg) =>
               msg.role === "agent" ? (
@@ -225,7 +280,7 @@ export function ConversationPage({
                 />
               ) : (
                 <UserBubble key={msg.id} content={msg.content} />
-              )
+              ),
             )}
             {isSending && (
               <AgentBubble
@@ -239,7 +294,6 @@ export function ConversationPage({
         </main>
       </ScrollArea>
 
-      {/* 输入区：吸底 */}
       <div className="shrink-0 border-t bg-background p-4">
         <div className="mx-auto flex max-w-2xl gap-2">
           <Input
@@ -263,18 +317,15 @@ export function ConversationPage({
         </div>
       </div>
 
-      {/* 页脚 */}
       <footer className="shrink-0 border-t px-4 py-2 text-center text-xs text-muted-foreground">
-        <Link
-          href="/guests"
-          className="underline-offset-4 hover:underline"
-        >
+        <Link href="/guests" className="underline-offset-4 hover:underline">
           返回列表
         </Link>
         <span className="mx-2">·</span>
         <Link
-          href="/guests/leave"
+          href="/support/end"
           className="underline-offset-4 hover:underline"
+          onClick={() => persistStoryDraft(messagesRef.current)}
         >
           结束对话
         </Link>
@@ -303,7 +354,7 @@ function AgentBubble({
           "max-w-[85%] rounded-2xl rounded-bl-md px-4 py-2.5 text-sm",
           isFallback
             ? "border border-border bg-muted/50 text-muted-foreground"
-            : "bg-muted text-foreground"
+            : "bg-muted text-foreground",
         )}
       >
         <p className="mb-0.5 font-medium text-muted-foreground">

@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "幸存者故事 | 接触与知情",
+  title: "小影 | AI 影像性暴力支持与同伴对话",
   description:
-    "通过与嘉宾的对话，了解他们愿意分享的经历与观点。请在知情后选择进入或离开。",
+    "温暖的同伴式对话、自助工具与科普。请在知情同意后进入；这不是你的错。",
 };
 
 export default function RootLayout({

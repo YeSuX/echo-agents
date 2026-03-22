@@ -1,11 +1,11 @@
-/**
- * 嘉宾 Agent 对话 API：Kimi 多轮对话 + 流式输出。
- * 参考：多轮对话用 messages，流式设置 stream: true。
- */
-
 import { NextRequest } from "next/server"
 import OpenAI from "openai"
+import { getCompanionSystemPrompt } from "@/lib/companion-agent"
 import { getGuestSystemPrompt } from "@/lib/guest-agent"
+import { isJsonRecord, parseJson, type Json } from "@/lib/json-parse"
+import { matchCases } from "@/lib/match-cases"
+import { getSelfHelpEntryById } from "@/data/self-help-catalog"
+import { detectTakedownIntent } from "@/lib/takedown-intent"
 
 const KIMI_MODEL = "kimi-k2.5"
 
@@ -16,28 +16,91 @@ function getKimiClient() {
   return new OpenAI({ apiKey, baseURL })
 }
 
-/** 请求体：guestId + 多轮 messages（OpenAI 格式） */
-type ChatRequestBody = {
-  guestId: string
-  messages: Array<{ role: "user" | "assistant" | "system"; content: string }>
+type ChatRole = "user" | "assistant"
+
+type ChatMessage = { role: ChatRole; content: string }
+
+type ChatMode = "companion" | "guest"
+
+function parseMessages(value: Json): ChatMessage[] | null {
+  if (!Array.isArray(value)) return null
+  const out: ChatMessage[] = []
+  for (const m of value) {
+    if (!isJsonRecord(m)) return null
+    const role = m.role
+    const content = m.content
+    if (role !== "user" && role !== "assistant") continue
+    if (typeof content !== "string") return null
+    out.push({ role, content })
+  }
+  if (out.length === 0) return null
+  return out
 }
 
-function parseBody(req: NextRequest): Promise<ChatRequestBody> {
-  return req.json()
+function parseMode(value: Json): ChatMode | null {
+  if (value === "companion" || value === "guest") return value
+  return null
+}
+
+function lastUserContent(messages: ChatMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "user") return messages[i].content
+  }
+  return ""
+}
+
+function parseChatRequest(
+  root: { readonly [k: string]: Json },
+): { mode: ChatMode; guestId: string; messages: ChatMessage[] } | null {
+  const messages = parseMessages(root.messages)
+  if (!messages) return null
+  const guestIdRaw = root.guestId
+  const guestId = typeof guestIdRaw === "string" ? guestIdRaw : ""
+  const modeRaw = root.mode
+  let mode: ChatMode
+  if (modeRaw !== undefined && modeRaw !== null) {
+    const m = parseMode(modeRaw)
+    if (!m) return null
+    mode = m
+  } else {
+    mode = guestId.length > 0 ? "guest" : "companion"
+  }
+  if (mode === "guest" && guestId.length === 0) return null
+  return { mode, guestId, messages }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await parseBody(req)
-    const { guestId, messages } = body
-    if (!guestId || !Array.isArray(messages) || messages.length === 0) {
+    const text = await req.text()
+    const j = parseJson(text)
+    if (!isJsonRecord(j)) {
       return new Response(
-        JSON.stringify({ error: "guestId and non-empty messages required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Invalid JSON body" }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      )
+    }
+    const parsed = parseChatRequest(j)
+    if (!parsed) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Invalid body: need messages[], and for guest mode guestId; or mode: companion",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
       )
     }
 
-    const systemPrompt = getGuestSystemPrompt(guestId)
+    const { mode, guestId, messages } = parsed
+    const lastUser = lastUserContent(messages)
+
+    let systemPrompt: string
+    if (mode === "companion") {
+      const matched = matchCases(lastUser, 2)
+      systemPrompt = getCompanionSystemPrompt(matched)
+    } else {
+      systemPrompt = getGuestSystemPrompt(guestId)
+    }
+
     const client = getKimiClient()
 
     const stream = await client.chat.completions.create({
@@ -46,20 +109,43 @@ export async function POST(req: NextRequest) {
       messages: [
         { role: "system", content: systemPrompt },
         ...messages.map((m) => ({
-          role: m.role as "user" | "assistant",
+          role: m.role,
           content: m.content,
         })),
       ],
     })
 
     const encoder = new TextEncoder()
+    const takedown = detectTakedownIntent(lastUser)
+    const takedownEntry = getSelfHelpEntryById("takedown-letter")
+
     const readable = new ReadableStream({
       async start(controller) {
         try {
+          if (takedown && takedownEntry) {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  type: "self_help",
+                  items: [
+                    {
+                      id: takedownEntry.id,
+                      title: takedownEntry.title,
+                      url: takedownEntry.href,
+                    },
+                  ],
+                })}\n\n`,
+              ),
+            )
+          }
           for await (const chunk of stream) {
             const delta = chunk.choices[0]?.delta?.content
             if (typeof delta === "string" && delta) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: delta })}\n\n`))
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ content: delta })}\n\n`,
+                ),
+              )
             }
           }
           controller.enqueue(encoder.encode("data: [DONE]\n\n"))
@@ -77,10 +163,11 @@ export async function POST(req: NextRequest) {
       },
     })
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Unknown error"
-    return new Response(
-      JSON.stringify({ error: message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    )
+    const message =
+      e instanceof Error ? e.message : "Service temporarily unavailable"
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 }

@@ -154,7 +154,17 @@ export function GuestSelectContent() {
               支持资源
             </Link>
             <span aria-hidden>·</span>
-            <span>隐私说明</span>
+            <Link href="/learn" className="underline-offset-4 hover:underline">
+              科普
+            </Link>
+            <span aria-hidden>·</span>
+            <Link href="/stories" className="underline-offset-4 hover:underline">
+              案例
+            </Link>
+            <span aria-hidden>·</span>
+            <Link href="/privacy" className="underline-offset-4 hover:underline">
+              隐私
+            </Link>
           </p>
         </footer>
       </div>

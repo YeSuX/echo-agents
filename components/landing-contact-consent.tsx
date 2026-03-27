@@ -1,15 +1,15 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { AlertTriangle, ExternalLink, Phone, Heart } from "lucide-react"
+import Link from "next/link";
+import { AlertTriangle, ExternalLink, Phone, Heart } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible"
+} from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -17,11 +17,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Separator } from "@/components/ui/separator"
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 
-const SAFE_EXIT_URL = "https://www.google.com"
-const SUPPORT_CHAT_PATH = "/support"
+const SAFE_EXIT_URL = "https://www.google.com";
+const SUPPORT_CHAT_PATH = "/support";
 
 export function LandingContactConsent() {
   return (
@@ -51,11 +51,7 @@ export function LandingContactConsent() {
         </p>
       </section>
 
-      <section
-        className="mb-6"
-        aria-label="触发警告与支持资源"
-        role="region"
-      >
+      <section className="mb-6" aria-label="触发警告与支持资源" role="region">
         <Alert
           variant="default"
           className="border-amber-200 bg-amber-50/80 dark:border-amber-900/50 dark:bg-amber-950/30"
@@ -74,7 +70,10 @@ export function LandingContactConsent() {
           </AlertDescription>
         </Alert>
 
-        <div id="support" className="mt-4 scroll-mt-4 rounded-lg border bg-card p-4">
+        <div
+          id="support"
+          className="mt-4 scroll-mt-4 rounded-lg border bg-card p-4"
+        >
           <h3 className="mb-3 flex items-center gap-2 text-sm font-medium">
             <Heart className="size-4 text-muted-foreground" />
             支持资源
@@ -129,7 +128,7 @@ export function LandingContactConsent() {
       <section className="mb-6 rounded-lg border bg-muted/30 p-4">
         <p className="text-sm font-medium">隐私承诺（摘要）</p>
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          不默认公开你的对话；自助包与链接仅在页面内提供。匿名故事仅在您勾选同意后提交，并进入待审核队列。
+          不默认公开你的对话；自助包与链接仅在页面内提供。
         </p>
         <Dialog>
           <DialogTrigger asChild>
@@ -157,11 +156,7 @@ export function LandingContactConsent() {
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="outline" asChild>
-            <a
-              href={SAFE_EXIT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a href={SAFE_EXIT_URL} target="_blank" rel="noopener noreferrer">
               暂时离开
             </a>
           </Button>
@@ -194,5 +189,5 @@ export function LandingContactConsent() {
         </p>
       </footer>
     </div>
-  )
+  );
 }

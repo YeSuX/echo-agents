@@ -1,15 +1,15 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { AlertTriangle, ExternalLink, Phone, Heart } from "lucide-react"
+import Link from "next/link";
+import { AlertTriangle, ExternalLink, Phone, Heart } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible"
+} from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -17,23 +17,22 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Separator } from "@/components/ui/separator"
-import { SUPPORT_RESOURCES } from "@/data/support-resources"
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { SUPPORT_RESOURCES } from "@/data/support-resources";
 
-const SAFE_EXIT_URL = "https://www.google.com"
-const SUPPORT_CHAT_PATH = "/support"
+const SAFE_EXIT_URL = "https://www.google.com";
+const SUPPORT_CHAT_PATH = "/support";
 
 export function LandingContactConsent() {
   return (
     <div className="mx-auto w-full max-w-[560px] px-4 py-8 sm:px-6 sm:py-10">
       <header className="mb-8 text-center">
-        <div
-          className="mx-auto mb-3 flex h-12 w-24 items-center justify-center rounded-lg bg-muted text-muted-foreground"
-          aria-hidden
-        >
-          <span className="text-xs">Logo</span>
-        </div>
+        <img
+          src="/logo.PNG"
+          alt="小影"
+          className="mx-auto mb-3 h-20 w-20 rounded-full object-cover"
+        />
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
           小影
         </h1>
@@ -85,9 +84,7 @@ export function LandingContactConsent() {
                 <a
                   href={item.href}
                   target={item.type === "link" ? "_blank" : undefined}
-                  rel={
-                    item.type === "link" ? "noopener noreferrer" : undefined
-                  }
+                  rel={item.type === "link" ? "noopener noreferrer" : undefined}
                   className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
                 >
                   {item.type === "phone" ? (
@@ -144,7 +141,9 @@ export function LandingContactConsent() {
         <p className="text-sm font-medium">隐私承诺（摘要）</p>
         <ul className="mt-2 space-y-1 text-xs leading-relaxed text-muted-foreground">
           <li>• 默认「不留痕」：除非你主动授权，系统不存储对话</li>
-          <li>• 若选择留下故事，AI 会自动脱敏（替换姓名、手机号等为 [已隐藏]）</li>
+          <li>
+            • 若选择留下故事，AI 会自动脱敏（替换姓名、手机号等为 [已隐藏]）
+          </li>
           <li>• 留存数据仅用于影像性暴力监测与政策倡导，不用于商业分析</li>
           <li>• 你随时可撤回授权</li>
         </ul>
@@ -157,7 +156,10 @@ export function LandingContactConsent() {
           <DialogContent className="max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>隐私承诺：安全、尊重与集体的力量</DialogTitle>
-              <DialogDescription className="text-left text-sm leading-relaxed" asChild>
+              <DialogDescription
+                className="text-left text-sm leading-relaxed"
+                asChild
+              >
                 <div className="space-y-3">
                   <p>
                     在这里，你的安全是第一位的。这份约定旨在告诉你：我们如何保护你，以及我们如何聚沙成塔，共同反抗影像性暴力。
@@ -172,7 +174,9 @@ export function LandingContactConsent() {
                     2. 自动「面纱」：你的真实身份会被隐藏
                   </p>
                   <p>
-                    即便你选择留下故事，AI 也会在第一时间为你戴上「面纱」。当检测到姓名、手机号、具体社交账号、URL链接时，会将其替换为 [已隐藏]。
+                    即便你选择留下故事，AI
+                    也会在第一时间为你戴上「面纱」。当检测到姓名、手机号、具体社交账号、URL链接时，会将其替换为
+                    [已隐藏]。
                   </p>
                   <p className="font-medium text-foreground">
                     3. 数据处理与安全边界
@@ -231,9 +235,9 @@ export function LandingContactConsent() {
             隐私与数据
           </Link>
           <span aria-hidden>·</span>
-          <span>联系我们（占位）</span>
+          <span>联系我们</span>
         </p>
       </footer>
     </div>
-  )
+  );
 }

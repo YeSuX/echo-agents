@@ -15,27 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-
-const SUPPORT_RESOURCES = [
-  {
-    label: "全国 24 小时热线：010-12345678",
-    href: "tel:010-12345678",
-    icon: PhoneIcon,
-    external: false,
-  },
-  {
-    label: "某机构名称",
-    href: "https://example.org/support",
-    external: true,
-    icon: ExternalLinkIcon,
-  },
-  {
-    label: "更多资源",
-    href: "https://example.org/more",
-    external: true,
-    icon: ExternalLinkIcon,
-  },
-] as const
+import { SUPPORT_RESOURCES } from "@/data/support-resources"
 
 export function SupportEndPage() {
   const [draft, setDraft] = useState("")
@@ -93,20 +73,29 @@ export function SupportEndPage() {
               </p>
               <ul className="space-y-1.5">
                 {SUPPORT_RESOURCES.map((item) => {
-                  const Icon = item.icon
+                  const Icon =
+                    item.type === "phone" ? PhoneIcon : ExternalLinkIcon
                   return (
                     <li key={item.label}>
                       <Link
                         href={item.href}
-                        target={item.external ? "_blank" : undefined}
-                        rel={item.external ? "noopener noreferrer" : undefined}
+                        target={item.type === "link" ? "_blank" : undefined}
+                        rel={
+                          item.type === "link"
+                            ? "noopener noreferrer"
+                            : undefined
+                        }
                         className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-accent hover:text-accent-foreground"
                       >
                         <Icon className="size-4 shrink-0" />
-                        <span className="min-w-0 truncate">{item.label}</span>
-                        {item.external && (
-                          <ExternalLinkIcon className="size-3.5 shrink-0 opacity-60" />
-                        )}
+                        <span className="min-w-0">
+                          <span className="block">{item.label}</span>
+                          {item.description && (
+                            <span className="block text-xs text-muted-foreground">
+                              {item.description}
+                            </span>
+                          )}
+                        </span>
                       </Link>
                     </li>
                   )

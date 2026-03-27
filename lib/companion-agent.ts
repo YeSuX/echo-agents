@@ -1,43 +1,45 @@
-const COMPANION_VOICE = `你是「同伴支持者」，面向可能经历 AI 生成影像性暴力相关困扰的用户。
-语气：平稳、坚定、高共情。多使用自然、温暖的表达，避免冷冰冰的术语与表格腔。
-绝对禁止：责怪受害者、暗示「你本可以如何避免」、贬低其感受或选择。
-强调：这不是你的错；你愿意说出来已经很勇敢；每一步都可以按你的节奏来；过错在利用与传播影像的人，而不是你。`
+import {
+  ROLE_IDENTITY,
+  HARD_PROHIBITIONS,
+  MYTH_CORRECTIONS,
+  TRAUMA_INFORMED,
+  IBSV_TYPES,
+  SUPPORT_RESOURCES_TEXT,
+  CRISIS_PROTOCOL,
+  PRIVACY_PRINCIPLES,
+  OUTPUT_FORMAT,
+  LEARN_GUIDE,
+} from "./companion-prompt-parts"
 
-const SAFETY_RULES = `- 不提供可执行的违法指导；法律步骤只作一般性科普，并建议咨询当地律师/法援。
-- 不编造胜诉率、不保证结果；可描述常见路径与注意事项。
-- 危机（自伤、轻生念头）：固定短话术 + 热线/专业资源，不做治疗性深谈。`
+export function getCompanionSystemPrompt(
+  matchedCaseSummaries: string,
+): string {
+  return `${ROLE_IDENTITY}
 
-const CRISIS_FALLBACK =
-  "谢谢你愿意说出来。这些事需要专业的人来陪伴你。请拨打全国心理援助热线或你所在地的心理热线、医疗机构。你值得被好好对待。"
+${HARD_PROHIBITIONS}
 
-const LEARN_GUIDE = `若用户需要系统性阅读，可温和引导至站内科普页：/learn（定义与分类）、/learn#law（法律常识相关模块）。不要说教式堆砌链接，一两句即可。`
+${MYTH_CORRECTIONS}
 
-const OUTPUT_MARKDOWN = `## 输出格式（必须遵守）
-用户界面会把你回复渲染为 Markdown。请使用 GitHub 风格 Markdown：
-- 用空行分段；列表用 - 或 1.；重点用 **加粗**；术语或短名可用 \`行内代码\`。
-- 需要分层时用 ### 小标题（不要用单个 # 一级标题）。
-- 需要时可使用表格（GFM）；外部链接用 [文字](https://...) 形式。
-- 危机兜底等必须逐字固定的段落仍用纯文本即可。`
+${TRAUMA_INFORMED}
 
-export function getCompanionSystemPrompt(matchedCaseSummaries: string): string {
-  return `${COMPANION_VOICE}
+${IBSV_TYPES}
 
-${SAFETY_RULES}
+${OUTPUT_FORMAT}
 
 ${LEARN_GUIDE}
 
-${OUTPUT_MARKDOWN}
-
-## 可参考的匿名成功案例摘要（仅作叙述参考，勿逐字复述长段）
+## 可参考的匿名案例摘要（仅作叙述参考，勿逐字复述）
 ${matchedCaseSummaries || "（当前无匹配摘要，仅提供通用支持与路径说明）"}
 
-## 工具与文档
-当用户明确表达希望下架、删除、投诉平台内容时，你必须在回复中说明界面会提供《下架函》模板供下载，并简要说明使用步骤（勿假设用户已看到侧边栏）。
+## 自助工具
+当用户表达下架、删除、投诉等需求时，告知界面会提供对应的维权指南与模板下载，并简要说明首要步骤。
+当用户询问维权流程时，根据其具体情况（偷拍/传播/AI深伪/性勒索等），给出对应的简要步骤概述，并引导查看自助包中的详细指南。
 
-## 危机与求助
-若用户表露自伤、轻生或急性危机，请仅回复以下兜底话术（不要展开咨询）：
-「${CRISIS_FALLBACK}」
-并提醒用户查看页面上的支持资源入口。`
+${SUPPORT_RESOURCES_TEXT}
+
+${CRISIS_PROTOCOL}
+
+${PRIVACY_PRINCIPLES}`
 }
 
 export const COMPANION_OPENING =

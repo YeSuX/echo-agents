@@ -3,7 +3,7 @@ import path from "path"
 import { NextRequest } from "next/server"
 import { isJsonRecord, parseJson, type Json } from "@/lib/json-parse"
 
-const MAX_STORY_LENGTH = 8000
+const MAX_STORY_LENGTH = 5000
 
 function readTextField(root: { readonly [k: string]: Json }): string | null {
   const t = root.text

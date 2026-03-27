@@ -1,9 +1,9 @@
-"use client";
+"use client"
 
-import Link from "next/link";
-import { ArrowLeftIcon, ExternalLinkIcon, PhoneIcon } from "lucide-react";
+import Link from "next/link"
+import { ArrowLeftIcon, ExternalLinkIcon, PhoneIcon } from "lucide-react"
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -11,36 +11,14 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-
-/** 阶段四「离开或继续」：离开路径清晰、支持资源明显、收尾温和无 stigma */
-const SUPPORT_RESOURCES = [
-  {
-    label: "全国 24 小时热线：010-12345678",
-    href: "tel:010-12345678",
-    icon: PhoneIcon,
-    external: false,
-  },
-  {
-    label: "某机构名称",
-    href: "https://example.org/support",
-    external: true,
-    icon: ExternalLinkIcon,
-  },
-  {
-    label: "更多资源",
-    href: "https://example.org/more",
-    external: true,
-    icon: ExternalLinkIcon,
-  },
-] as const;
+} from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
+import { SUPPORT_RESOURCES } from "@/data/support-resources"
 
 export function LeaveOrContinuePage() {
   return (
     <div className="flex min-h-dvh flex-col bg-background">
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-8">
-        {/* 插画占位：可替换为平静离开/反思主题插画 */}
         <div
           className="mx-auto mb-6 flex aspect-square w-40 items-center justify-center rounded-2xl bg-muted text-muted-foreground"
           aria-hidden
@@ -72,23 +50,32 @@ export function LeaveOrContinuePage() {
               </p>
               <ul className="space-y-1.5">
                 {SUPPORT_RESOURCES.map((item) => {
-                  const Icon = item.icon;
+                  const Icon =
+                    item.type === "phone" ? PhoneIcon : ExternalLinkIcon
                   return (
                     <li key={item.label}>
                       <Link
                         href={item.href}
-                        target={item.external ? "_blank" : undefined}
-                        rel={item.external ? "noopener noreferrer" : undefined}
+                        target={item.type === "link" ? "_blank" : undefined}
+                        rel={
+                          item.type === "link"
+                            ? "noopener noreferrer"
+                            : undefined
+                        }
                         className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-accent hover:text-accent-foreground"
                       >
                         <Icon className="size-4 shrink-0" />
-                        <span className="min-w-0 truncate">{item.label}</span>
-                        {item.external && (
-                          <ExternalLinkIcon className="size-3.5 shrink-0 opacity-60" />
-                        )}
+                        <span className="min-w-0">
+                          <span className="block">{item.label}</span>
+                          {item.description && (
+                            <span className="block text-xs text-muted-foreground">
+                              {item.description}
+                            </span>
+                          )}
+                        </span>
                       </Link>
                     </li>
-                  );
+                  )
                 })}
               </ul>
             </div>
@@ -101,5 +88,5 @@ export function LeaveOrContinuePage() {
         </Card>
       </main>
     </div>
-  );
+  )
 }

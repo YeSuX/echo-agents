@@ -10,8 +10,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { SUPPORT_RESOURCES } from "@/data/support-resources"
 
-/** 支持资源下拉：与首屏内容一致，用于嘉宾列表页等常驻入口 */
 export function SupportResourcesDropdown() {
   return (
     <DropdownMenu>
@@ -21,41 +21,33 @@ export function SupportResourcesDropdown() {
           <ChevronDownIcon className="size-4 opacity-60" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
+      <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
           若您感到不适，可随时使用以下资源
         </DropdownMenuLabel>
-        <DropdownMenuItem asChild>
-          <a
-            href="tel:010-12345678"
-            className="flex cursor-pointer items-center gap-2"
-          >
-            <PhoneIcon className="size-4" />
-            全国 24 小时热线：010-12345678
-          </a>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <a
-            href="https://example.org/support"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex cursor-pointer items-center gap-2"
-          >
-            某机构名称
-            <ExternalLinkIcon className="size-3.5" />
-          </a>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <a
-            href="https://example.org/more"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex cursor-pointer items-center gap-2"
-          >
-            更多资源
-            <ExternalLinkIcon className="size-3.5" />
-          </a>
-        </DropdownMenuItem>
+        {SUPPORT_RESOURCES.map((item) => {
+          const Icon = item.type === "phone" ? PhoneIcon : ExternalLinkIcon
+          return (
+            <DropdownMenuItem key={item.label} asChild>
+              <a
+                href={item.href}
+                target={item.type === "link" ? "_blank" : undefined}
+                rel={item.type === "link" ? "noopener noreferrer" : undefined}
+                className="flex cursor-pointer items-center gap-2"
+              >
+                <Icon className="size-4 shrink-0" />
+                <span className="min-w-0">
+                  <span className="block text-sm">{item.label}</span>
+                  {item.description && (
+                    <span className="block text-xs text-muted-foreground">
+                      {item.description}
+                    </span>
+                  )}
+                </span>
+              </a>
+            </DropdownMenuItem>
+          )
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   )

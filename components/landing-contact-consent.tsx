@@ -1,15 +1,15 @@
-"use client";
+"use client"
 
-import Link from "next/link";
-import { AlertTriangle, ExternalLink, Phone, Heart } from "lucide-react";
+import Link from "next/link"
+import { AlertTriangle, ExternalLink, Phone, Heart } from "lucide-react"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+} from "@/components/ui/collapsible"
 import {
   Dialog,
   DialogContent,
@@ -17,11 +17,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
+} from "@/components/ui/dialog"
+import { Separator } from "@/components/ui/separator"
+import { SUPPORT_RESOURCES } from "@/data/support-resources"
 
-const SAFE_EXIT_URL = "https://www.google.com";
-const SUPPORT_CHAT_PATH = "/support";
+const SAFE_EXIT_URL = "https://www.google.com"
+const SUPPORT_CHAT_PATH = "/support"
 
 export function LandingContactConsent() {
   return (
@@ -79,43 +80,57 @@ export function LandingContactConsent() {
             支持资源
           </h3>
           <ul className="space-y-2 text-sm" role="list">
-            <li>
-              <a
-                href="tel:010-12345678"
-                className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
-              >
-                <Phone className="size-3.5" />
-                全国 24 小时热线：010-12345678
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://example.org/support"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
-              >
-                某机构名称
-                <ExternalLink className="size-3" />
-              </a>
-            </li>
+            {SUPPORT_RESOURCES.slice(0, 3).map((item) => (
+              <li key={item.label}>
+                <a
+                  href={item.href}
+                  target={item.type === "link" ? "_blank" : undefined}
+                  rel={
+                    item.type === "link" ? "noopener noreferrer" : undefined
+                  }
+                  className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
+                >
+                  {item.type === "phone" ? (
+                    <Phone className="size-3.5" />
+                  ) : (
+                    <ExternalLink className="size-3" />
+                  )}
+                  {item.label}
+                  {item.description && (
+                    <span className="text-muted-foreground">
+                      （{item.description}）
+                    </span>
+                  )}
+                </a>
+              </li>
+            ))}
             <Collapsible defaultOpen={false}>
               <CollapsibleTrigger className="inline-flex items-center gap-1 text-left text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded">
                 更多资源
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <ul className="mt-2 space-y-1.5 pl-0 text-sm">
-                  <li>
-                    <a
-                      href="https://example.org/more"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
-                    >
-                      更多资源链接
-                      <ExternalLink className="ml-1 inline size-3" />
-                    </a>
-                  </li>
+                  {SUPPORT_RESOURCES.slice(3).map((item) => (
+                    <li key={item.label}>
+                      <a
+                        href={item.href}
+                        target={item.type === "link" ? "_blank" : undefined}
+                        rel={
+                          item.type === "link"
+                            ? "noopener noreferrer"
+                            : undefined
+                        }
+                        className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
+                      >
+                        {item.label}
+                        {item.description && (
+                          <span className="text-muted-foreground">
+                            （{item.description}）
+                          </span>
+                        )}
+                      </a>
+                    </li>
+                  ))}
                 </ul>
               </CollapsibleContent>
             </Collapsible>
@@ -127,24 +142,55 @@ export function LandingContactConsent() {
 
       <section className="mb-6 rounded-lg border bg-muted/30 p-4">
         <p className="text-sm font-medium">隐私承诺（摘要）</p>
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          不默认公开你的对话；自助包与链接仅在页面内提供。
-        </p>
+        <ul className="mt-2 space-y-1 text-xs leading-relaxed text-muted-foreground">
+          <li>• 默认「不留痕」：除非你主动授权，系统不存储对话</li>
+          <li>• 若选择留下故事，AI 会自动脱敏（替换姓名、手机号等为 [已隐藏]）</li>
+          <li>• 留存数据仅用于影像性暴力监测与政策倡导，不用于商业分析</li>
+          <li>• 你随时可撤回授权</li>
+        </ul>
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="link" className="mt-2 h-auto p-0 text-xs">
-              查看完整说明（占位）
+              查看完整说明
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>隐私与数据</DialogTitle>
-              <DialogDescription className="text-left text-sm leading-relaxed">
-                完整隐私政策与用户协议待定。你可随时关闭页面离开。若提交匿名内容，请避免包含可识别信息。
+              <DialogTitle>隐私承诺：安全、尊重与集体的力量</DialogTitle>
+              <DialogDescription className="text-left text-sm leading-relaxed" asChild>
+                <div className="space-y-3">
+                  <p>
+                    在这里，你的安全是第一位的。这份约定旨在告诉你：我们如何保护你，以及我们如何聚沙成塔，共同反抗影像性暴力。
+                  </p>
+                  <p className="font-medium text-foreground">
+                    1. 默认「不留痕」，除非你决定发声
+                  </p>
+                  <p>
+                    除非你主动授权，否则系统不会存储你的对话信息。一旦关闭网页或结束会话，数据将从临时内存中抹除。如果你愿意将经历留给我们，用于协助监测此类事件的趋势、推动法律改进或进行公益倡导，你可以选择授权存储。
+                  </p>
+                  <p className="font-medium text-foreground">
+                    2. 自动「面纱」：你的真实身份会被隐藏
+                  </p>
+                  <p>
+                    即便你选择留下故事，AI 也会在第一时间为你戴上「面纱」。当检测到姓名、手机号、具体社交账号、URL链接时，会将其替换为 [已隐藏]。
+                  </p>
+                  <p className="font-medium text-foreground">
+                    3. 数据处理与安全边界
+                  </p>
+                  <p>
+                    我们采用标准的工业级传输加密技术（SSL/HTTPS），确保信息在发送过程中不会被截获。留存的数据仅限用于影像性暴力监测与政策倡导，绝不用于商业分析、画像建模或交给任何非法律/公益背景的第三方。
+                  </p>
+                  <p className="font-medium text-foreground">
+                    4. 你随时可以「反悔」
+                  </p>
+                  <p>
+                    如果你之前分享了故事，但现在感到不安，你可以随时联系我们或通过设置撤回授权。你对自己的经历拥有永久的「撤回权」。
+                  </p>
+                </div>
               </DialogDescription>
             </DialogHeader>
             <Button variant="outline" asChild>
-              <Link href="/privacy">打开隐私占位页</Link>
+              <Link href="/privacy">查看隐私页面</Link>
             </Button>
           </DialogContent>
         </Dialog>
@@ -189,5 +235,5 @@ export function LandingContactConsent() {
         </p>
       </footer>
     </div>
-  );
+  )
 }

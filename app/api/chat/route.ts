@@ -5,7 +5,7 @@ import { getGuestSystemPrompt } from "@/lib/guest-agent"
 import { isJsonRecord, parseJson, type Json } from "@/lib/json-parse"
 import { matchCases } from "@/lib/match-cases"
 import { getSelfHelpEntryById } from "@/data/self-help-catalog"
-import { detectTakedownIntent } from "@/lib/takedown-intent"
+import { detectIntent, selfHelpIdsForIntents } from "@/lib/intent-detect"
 import { normalizeKimiBaseUrl } from "@/lib/kimi-client-config"
 
 const KIMI_MODEL = "kimi-k2.5"
@@ -153,27 +153,30 @@ export async function POST(req: NextRequest) {
     })
 
     const encoder = new TextEncoder()
-    const takedown = detectTakedownIntent(lastUser)
-    const takedownEntry = getSelfHelpEntryById("takedown-letter")
+    const intents = detectIntent(lastUser)
+    const selfHelpIds = selfHelpIdsForIntents(intents)
 
     const readable = new ReadableStream({
       async start(controller) {
         try {
-          if (takedown && takedownEntry) {
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({
-                  type: "self_help",
-                  items: [
-                    {
-                      id: takedownEntry.id,
-                      title: takedownEntry.title,
-                      url: takedownEntry.href,
-                    },
-                  ],
-                })}\n\n`,
-              ),
-            )
+          for (const id of selfHelpIds) {
+            const entry = getSelfHelpEntryById(id)
+            if (entry) {
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    type: "self_help",
+                    items: [
+                      {
+                        id: entry.id,
+                        title: entry.title,
+                        url: entry.href,
+                      },
+                    ],
+                  })}\n\n`,
+                ),
+              )
+            }
           }
           for await (const chunk of stream) {
             const delta = chunk.choices[0]?.delta?.content

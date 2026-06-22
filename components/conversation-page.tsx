@@ -20,7 +20,7 @@ import {
 } from "@/lib/derive-self-help"
 import { parseFetchErrorBody } from "@/lib/json-parse"
 import { sseItemsToPanelItems } from "@/lib/sse-self-help"
-import { parseSseDataLine } from "@/lib/sse-chat"
+import { applySseParseResult, parseSseDataLine } from "@/lib/sse-chat"
 import { cn } from "@/lib/utils"
 
 const AGENT_OPENING =
@@ -155,8 +155,8 @@ export function ConversationPage({
             sawDone = true
             break outer
           }
-          if (parsed.kind === "content") {
-            fullContent += parsed.content
+          if (parsed.kind === "content" || parsed.kind === "content_replace") {
+            fullContent = applySseParseResult(parsed, fullContent)
             setStreamingContent(fullContent)
           }
           if (parsed.kind === "self_help") {
@@ -168,7 +168,9 @@ export function ConversationPage({
 
       if (!sawDone) {
         const tail = parseSseDataLine(buffer)
-        if (tail.kind === "content") fullContent += tail.content
+        if (tail.kind === "content" || tail.kind === "content_replace") {
+        fullContent = applySseParseResult(tail, fullContent)
+      }
         if (tail.kind === "self_help") {
           const panel = sseItemsToPanelItems(tail.items)
           setSelfHelpItems((prev) => mergeSelfHelpDeduped(prev, panel))

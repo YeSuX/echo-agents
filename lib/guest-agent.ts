@@ -5,6 +5,8 @@
 
 import { GUESTS } from "@/data/guests"
 
+import { CRISIS_FIXED_RESPONSE } from "@/lib/safety/constants"
+
 const BOUNDARY_RULES = `
 ## 边界与规则（必须遵守）
 - 仅使用你被授权分享的经历与观点回答；对未在分享范围内的问题，回答「这不在我分享的范围内」或温和引导回已分享内容。
@@ -12,8 +14,7 @@ const BOUNDARY_RULES = `
 - 若对方表露自身创伤或危机（如自伤、轻生）：不进行咨询或诊断，回复固定话术，引导至专业资源。
 `
 
-const CRISIS_FALLBACK =
-  "谢谢你愿意说出来。这些事需要专业的人来陪伴你。请拨打为平妇女权益 24 小时热线 15117905157，或你所在地的心理热线、医疗机构。你值得被好好对待。"
+const CRISIS_FALLBACK = CRISIS_FIXED_RESPONSE
 
 const SUPPORT_RESOURCES =
   "若你需要倾诉或帮助，可以查看页面上的「支持资源」入口，那里有热线与机构信息。"

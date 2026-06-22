@@ -1,3 +1,5 @@
+import { isCrisisMessage } from "@/lib/safety/crisis"
+
 export type UserIntent =
   | "takedown"
   | "evidence"
@@ -37,10 +39,6 @@ const INTENT_RULES: { intent: UserIntent; keywords: string[] }[] = [
     intent: "sextortion",
     keywords: ["勒索", "威胁", "付钱", "裸聊", "恐吓", "不删就"],
   },
-  {
-    intent: "crisis",
-    keywords: ["不想活", "自杀", "轻生", "自伤", "活不下去", "结束生命"],
-  },
 ]
 
 export function detectIntent(text: string): UserIntent[] {
@@ -51,7 +49,8 @@ export function detectIntent(text: string): UserIntent[] {
       matched.push(rule.intent)
     }
   }
-  return matched
+  if (isCrisisMessage(text)) matched.push("crisis")
+  return [...new Set(matched)]
 }
 
 const INTENT_TO_SELF_HELP: Partial<Record<UserIntent, string[]>> = {

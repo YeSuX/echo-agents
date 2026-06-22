@@ -8,6 +8,7 @@ export type SelfHelpSseItem = {
 
 export type SseParseResult =
   | { kind: "content"; content: string }
+  | { kind: "content_replace"; content: string }
   | { kind: "self_help"; items: SelfHelpSseItem[] }
   | { kind: "done" }
   | { kind: "ignored" }
@@ -44,7 +45,24 @@ export function parseSseDataLine(line: string): SseParseResult {
     if (items) return { kind: "self_help", items }
     return { kind: "ignored" }
   }
+  if (t === "content_replace") {
+    const replaceContent = root.content
+    if (typeof replaceContent === "string") {
+      return { kind: "content_replace", content: replaceContent }
+    }
+    return { kind: "ignored" }
+  }
   const c = root.content
   if (typeof c === "string") return { kind: "content", content: c }
   return { kind: "ignored" }
+}
+
+/** 消费 SSE 行，返回最终正文（含 content_replace 覆盖） */
+export function applySseParseResult(
+  parsed: SseParseResult,
+  fullContent: string,
+): string {
+  if (parsed.kind === "content") return fullContent + parsed.content
+  if (parsed.kind === "content_replace") return parsed.content
+  return fullContent
 }

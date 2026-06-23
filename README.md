@@ -5,7 +5,7 @@
 ## 文档约定
 
 - 产品说明、研究报告与实现计划等**统一使用 Markdown**（`.md`），便于版本管理与评审。
-- 仓库内主要文档示例：`plan.md`、`research.md`；设计稿类说明可在 `docs/` 下维护。
+- 仓库内主要文档示例：`plan.md`、`research.md`、`docs/safety-test-cases.md`（安全验收）、`docs/legal-manual-review-sop.md`（**法律顾问人工抽检 SOP**）；设计稿类说明可在 `docs/` 下维护。
 - **对话中的 AI 回复**在界面上按 **Markdown（GFM）** 渲染（列表、加粗、代码块、表格等）；流式生成过程中仍显示为纯文本，完成后切换为渲染结果，避免半段语法闪烁。
 
 ## 包管理器：Bun
@@ -17,6 +17,9 @@ bun install
 bun run dev
 bun run build
 bun run lint
+bun run test:safety
+bun run test:safety:e2e   # 需另开终端 bun run dev
+bun run test:legal-golden # 法律问句 golden 回归；live 需 KIMI_API_KEY
 ```
 
 ### 常用脚本
@@ -28,6 +31,9 @@ bun run lint
 | `bun run start` | 启动生产服务 |
 | `bun run build:cloudflare` | OpenNext → Cloudflare 构建 |
 | `bun run preview` / `bun run deploy` | Cloudflare 预览 / 部署（需已配置 Wrangler） |
+| `bun run test:safety` | 安全护栏单元回归（见 `docs/safety-test-cases.md`） |
+| `bun run test:safety:e2e` | 安全护栏 E2E（需先 `bun run dev`） |
+| `bun run test:legal-golden` | 法律 Golden 自动回归（人工抽检 SOP：`docs/legal-manual-review-sop.md`） |
 
 ## 环境变量
 

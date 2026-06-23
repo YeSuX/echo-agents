@@ -682,7 +682,7 @@ export const LEARN_SECTIONS: LearnSection[] = [
 - [x] **A-4.5** 从 `维权sop.md` 第三节（收集证据方式）提取内容，写入 `public/self-help/evidence-guide.md`（替换现有占位）
 - [x] **A-4.6** 将 `data/技术文档/影像性暴力支持资源.md` 内容写入 `public/self-help/legal-directory.md`（替换现有占位）
 - [x] **A-4.7** 从 `维权sop.md` 中提取性勒索相关段落，结合通用报警/证据部分，写入 `public/self-help/guide-sextortion.md`
-- [x] **A-4.8** 验证：`npm run build` 后所有 `public/self-help/*.md` 文件可通过 `/self-help/*.md` 路径访问
+- [x] **A-4.8** 验证：`bun run build` 后所有 `public/self-help/*.md` 文件可通过 `/self-help/*.md` 路径访问
 
 #### A-5. 意图检测升级
 
@@ -709,7 +709,7 @@ export const LEARN_SECTIONS: LearnSection[] = [
 - [x] **B-6** 更新 `lib/sse-chat.ts`：确认 `parseSseDataLine` 对 `self_help.items` 为数组的情况正确解析（现有实现应已兼容，需验证）
 - [x] **B-7** 验证：发送消息 "有人用AI换了我的脸做色情视频"，SSE 流中应包含 `type: "self_help"` 事件，items 含 `guide-deepfake` 和 `evidence-guide`
 - [x] **B-8** 验证：发送消息 "今天天气不错"，SSE 流中不应包含 `self_help` 事件
-- [x] **B-9** 验证：TypeScript 编译无错（`npx tsc --noEmit`）
+- [x] **B-9** 验证：TypeScript 编译无错（`bunx tsc --noEmit`）
 
 ---
 
@@ -749,8 +749,8 @@ export const LEARN_SECTIONS: LearnSection[] = [
 
 #### C-6. 整体验证
 
-- [x] **C-6.1** `npm run build` 无错误
-- [x] **C-6.2** 本地 `npm run dev` 后，完整走一遍用户流程：Landing → 进入对话 → 发送消息 → 查看侧边栏资源 → 点击资源链接
+- [x] **C-6.1** `bun run build` 无错误
+- [x] **C-6.2** 本地 `bun run dev` 后，完整走一遍用户流程：Landing → 进入对话 → 发送消息 → 查看侧边栏资源 → 点击资源链接
 - [x] **C-6.3** 验证移动端布局：侧边栏 Sheet/Drawer 正常弹出、快捷输入可见
 
 ---
@@ -815,8 +815,8 @@ export const LEARN_SECTIONS: LearnSection[] = [
 - [x] **F-6** 删除 `lib/takedown-intent.ts`（若阶段 B-5 尚未执行）
 - [x] **F-7** 全局搜索 `010-12345678`、`example.org` 等占位数据，确保全部替换
 - [x] **F-8** 全局搜索 `010-82951332`（guest-agent 中的旧热线），替换为统一数据源
-- [x] **F-9** `npm run build` 无错误、无 TypeScript 类型警告
-- [x] **F-10** ESLint 通过（`npx eslint .`）
+- [x] **F-9** `bun run build` 无错误、无 TypeScript 类型警告
+- [x] **F-10** ESLint 通过（`bun run lint`）
 
 ---
 

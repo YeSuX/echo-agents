@@ -35,10 +35,12 @@
 
 - `@/*` → 仓库根目录（见 `tsconfig.json`）。
 
-### 2.2 构建与部署命令（`package.json`）
+### 2.2 构建与部署命令（`package.json`，包管理器 **Bun**，锁文件 `bun.lock`）
 
-- 开发：`npm run dev`
-- 标准 Next 构建：`npm run build` / `npm run start`
+- 安装依赖：`bun install`
+- 开发：`bun run dev`
+- 标准 Next 构建：`bun run build` / `bun run start`
+- 安全回归：`bun run test:safety`
 - Cloudflare：`build:cloudflare`、`preview`、`deploy`，产物使用 `.open-next/`（已在 `.gitignore` 中忽略）
 
 ### 2.3 Cloudflare 配置要点（`wrangler.jsonc`）

@@ -1,4 +1,4 @@
-# 小影（echo-agents）
+# 小荧（echo-agents）
 
 面向 **AI 影像性暴力** 相关困扰的 Web 应用：同伴式对话（Kimi）、自助资源包、科普与匿名案例示意。技术栈为 **Next.js**（App Router）+ **React** + **TypeScript** + **Tailwind**。
 

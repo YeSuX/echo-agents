@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "小影 | AI 影像性暴力支持与同伴对话",
+  title: "小荧 | AI 影像性暴力支持与同伴对话",
   description:
     "温暖的同伴式对话、自助工具与科普。请在知情同意后进入；这不是你的错。",
   icons: {

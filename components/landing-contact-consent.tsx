@@ -30,11 +30,11 @@ export function LandingContactConsent() {
       <header className="mb-8 text-center">
         <img
           src="/logo.PNG"
-          alt="小影"
+          alt="小荧"
           className="mx-auto mb-3 h-20 w-20 rounded-full object-cover"
         />
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          小影
+          小荧
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           AI 影像性暴力相关困扰的支持与同伴对话
@@ -46,7 +46,7 @@ export function LandingContactConsent() {
           本产品是什么
         </h2>
         <p className="text-sm leading-relaxed text-foreground">
-          小影提供温暖的同伴式对话、自助工具与科普内容。对话由 AI
+          小荧提供温暖的同伴式对话、自助工具与科普内容。对话由 AI
           在严格安全边界内回应；这不是你的错，每一步都可以按你的节奏来。
         </p>
       </section>

@@ -13,7 +13,7 @@ export default function LearnPage() {
         返回首页
       </Link>
       <h1 className="mt-6 text-2xl font-semibold tracking-tight">
-        科普 · 小影
+        科普 · 小荧
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">
         了解影像性暴力的定义、类型、法律常识与支持资源。

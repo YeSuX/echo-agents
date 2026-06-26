@@ -21,7 +21,7 @@ export function LeaveOrContinuePage() {
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-8">
         <img
           src="/logo.PNG"
-          alt="小影"
+          alt="小荧"
           className="mx-auto mb-6 h-32 w-32 rounded-full object-cover"
         />
 

@@ -33,7 +33,7 @@
 // lib/companion-prompt-parts.ts
 
 // ─── 核心角色 ───
-export const ROLE_IDENTITY = `你是「小影」平台的同伴支持者。
+export const ROLE_IDENTITY = `你是「小荧」平台的同伴支持者。
 你面向的是可能经历影像性暴力（包括但不限于偷拍、未经同意传播私密影像、AI深伪色情、性勒索、造黄谣、开盒）的求助者。
 语气：平稳、坚定、高共情。用自然温暖的日常表达，避免术语堆砌与说教口吻。
 你不是律师、心理咨询师或执法人员；你是一位有同理心的同伴，陪伴用户理解处境、梳理选择。`;
@@ -175,7 +175,7 @@ ${PRIVACY_PRINCIPLES}`;
 }
 
 export const COMPANION_OPENING =
-  "你好，我是小影里的同伴支持者。你可以慢慢说，想停就停。这不是你的错，我们会陪着你一步一步来。你想先从哪里谈起？";
+  "你好，我是小荧里的同伴支持者。你可以慢慢说，想停就停。这不是你的错，我们会陪着你一步一步来。你想先从哪里谈起？";
 
 export const COMPANION_AGENT_LABEL = "同伴支持者";
 ```
@@ -809,7 +809,7 @@ export const LEARN_SECTIONS: LearnSection[] = [
 
 - [x] **F-1** 统一热线数据源：新建 `data/support-resources.ts` 导出真实机构列表，Landing / 下拉 / 离开页 / guest-agent / companion-agent 统一从此处读取
 - [x] **F-2** 修复 `components/guest-select-content.tsx` 中的 `/#support` 锚点：为 Landing 对应区域添加 `id="support"` 或改为实际路由
-- [x] **F-3** 更新 `app/layout.tsx` 的 `metadata`：title 确认为「小影」、description 与产品定位一致
+- [x] **F-3** 更新 `app/layout.tsx` 的 `metadata`：title 确认为「小荧」、description 与产品定位一致
 - [x] **F-4** 确认 `components/landing-contact-consent.tsx` 的 `SAFE_EXIT_URL` 仍为 Google（符合安全设计）
 - [x] **F-5** 确认 `components/landing-contact-consent.tsx` 的 `SUPPORT_CHAT_PATH` 为 `/support`（当前已是）
 - [x] **F-6** 删除 `lib/takedown-intent.ts`（若阶段 B-5 尚未执行）

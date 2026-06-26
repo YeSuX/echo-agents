@@ -233,7 +233,7 @@ export function CompanionConversationPage() {
           </Button>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium sm:text-base">
-              小影 · {COMPANION_AGENT_LABEL}
+              小荧 · {COMPANION_AGENT_LABEL}
             </p>
             <p className="truncate text-xs text-muted-foreground">
               <Link href="/learn" className="underline-offset-2 hover:underline">

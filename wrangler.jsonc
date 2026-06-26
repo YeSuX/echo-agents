@@ -2,8 +2,12 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "main": ".open-next/worker.js",
   "name": "echo-agents",
+  "account_id": "31d185b9577218433390bf660a13ae18",
   "compatibility_date": "2026-03-02",
   "compatibility_flags": ["nodejs_compat"],
+  "secrets": {
+    "required": ["KIMI_API_KEY"]
+  },
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"

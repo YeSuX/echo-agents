@@ -86,14 +86,15 @@ export function KimiConfigProvider({
     }
   }, [])
 
-  useEffect(() => {
-    if (open && allowClientKimiKey) {
+  const openConfig = useCallback(() => {
+    if (allowClientKimiKey) {
       const c = readKimiClientConfig()
       setDraftApiKey(c.apiKey)
       setDraftBaseUrl(c.baseUrl)
       setFormError(null)
     }
-  }, [open, allowClientKimiKey])
+    setOpen(true)
+  }, [allowClientKimiKey])
 
   const save = useCallback(() => {
     if (!allowClientKimiKey) return
@@ -130,11 +131,11 @@ export function KimiConfigProvider({
 
   const value = useMemo<KimiConfigContextValue>(
     () => ({
-      openConfig: () => setOpen(true),
+      openConfig,
       kimiRequestFields,
       allowClientKimiKey,
     }),
-    [kimiRequestFields, allowClientKimiKey],
+    [openConfig, kimiRequestFields, allowClientKimiKey],
   )
 
   return (

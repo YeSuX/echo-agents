@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { ArrowLeftIcon, ExternalLinkIcon, PhoneIcon } from "lucide-react"
 
 import { StoryContributionDialog } from "@/components/story-contribution-dialog"
@@ -18,21 +18,20 @@ import { Separator } from "@/components/ui/separator"
 import { SUPPORT_RESOURCES } from "@/data/support-resources"
 
 export function SupportEndPage() {
-  const [draft, setDraft] = useState("")
-  const [storyOpen, setStoryOpen] = useState(false)
-
-  useEffect(() => {
+  const [draft] = useState(() => {
+    if (typeof window === "undefined") return ""
     const d = sessionStorage.getItem("companion-story-draft") ?? ""
-    setDraft(d)
     sessionStorage.removeItem("companion-story-draft")
-  }, [])
+    return d
+  })
+  const [storyOpen, setStoryOpen] = useState(false)
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-8">
         <img
           src="/logo.PNG"
-          alt="小影"
+          alt="小荧"
           className="mx-auto mb-6 h-32 w-32 rounded-full object-cover"
         />
 
@@ -40,7 +39,7 @@ export function SupportEndPage() {
           <CardHeader className="text-center">
             <CardTitle>感谢你的停留</CardTitle>
             <CardDescription>
-              你可以随时返回小影同伴对话或嘉宾列表，也可以直接关闭页面。若需要倾诉或帮助，下方有支持资源。
+              你可以随时返回小荧同伴对话或嘉宾列表，也可以直接关闭页面。若需要倾诉或帮助，下方有支持资源。
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

@@ -8,6 +8,7 @@ import {
   LockKeyholeIcon,
   MenuIcon,
   SendIcon,
+  SquareIcon,
 } from "lucide-react"
 
 import { CompanionLayout } from "@/components/companion-layout"
@@ -40,6 +41,10 @@ import { parseFetchErrorBody } from "@/lib/json-parse"
 import { sseItemsToPanelItems } from "@/lib/sse-self-help"
 import { applySseParseResult, parseSseDataLine } from "@/lib/sse-chat"
 import { cn } from "@/lib/utils"
+import {
+  MAX_CHAT_INPUT_CHARS,
+  toChatApiMessages,
+} from "@/lib/chat-context"
 
 type MessageRole = "agent" | "user"
 type ConversationMessage = {
@@ -47,15 +52,6 @@ type ConversationMessage = {
   role: MessageRole
   content: string
   isFallback?: boolean
-}
-
-function toKimiMessages(messages: ConversationMessage[]) {
-  return messages
-    .filter((m) => m.role === "user" || m.role === "agent")
-    .map((m) => ({
-      role: m.role === "agent" ? ("assistant" as const) : ("user" as const),
-      content: m.content,
-    }))
 }
 
 function conversationUserText(messages: ConversationMessage[]): string {
@@ -116,7 +112,8 @@ export function CompanionConversationPage() {
 
       abortRef.current = new AbortController()
       const signal = abortRef.current.signal
-      const kimiMessages = toKimiMessages(nextMessages)
+      const kimiMessages = toChatApiMessages(nextMessages)
+      let fullContent = ""
 
       try {
         const res = await fetch("/api/chat", {
@@ -140,7 +137,6 @@ export function CompanionConversationPage() {
         const decoder = new TextDecoder()
         if (!reader) throw new Error("No response body")
 
-        let fullContent = ""
         let buffer = ""
         let sawDone = false
 
@@ -188,7 +184,21 @@ export function CompanionConversationPage() {
           },
         ])
       } catch (e) {
-        if (e instanceof Error && e.name === "AbortError") return
+        if (e instanceof Error && e.name === "AbortError") {
+          setStreamingContent("")
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `agent-${Date.now()}`,
+              role: "agent",
+              content: fullContent.trim()
+                ? `${fullContent.trim()}\n\n（已停止生成）`
+                : "已停下。你可以换个方式继续，或者先休息一下。",
+              isFallback: !fullContent.trim(),
+            },
+          ])
+          return
+        }
         setError(e instanceof Error ? e.message : "发送失败，请重试")
         setMessages((prev) => [
           ...prev,
@@ -350,18 +360,32 @@ export function CompanionConversationPage() {
               className="max-h-32 min-h-11 resize-none bg-background py-3"
               rows={1}
               disabled={isSending}
+              maxLength={MAX_CHAT_INPUT_CHARS}
               aria-label="输入消息"
             />
-            <Button
-              type="button"
-              className="h-11 px-4"
-              onClick={handleSend}
-              disabled={!input.trim() || isSending}
-            >
-              <SendIcon className="size-4" />
-              <span className="hidden sm:inline">发送</span>
-              <span className="sr-only sm:hidden">发送</span>
-            </Button>
+            {isSending ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 px-4"
+                onClick={() => abortRef.current?.abort()}
+              >
+                <SquareIcon className="size-3.5 fill-current" />
+                <span className="hidden sm:inline">停止</span>
+                <span className="sr-only sm:hidden">停止生成</span>
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                className="h-11 px-4"
+                onClick={handleSend}
+                disabled={!input.trim()}
+              >
+                <SendIcon className="size-4" />
+                <span className="hidden sm:inline">发送</span>
+                <span className="sr-only sm:hidden">发送</span>
+              </Button>
+            )}
           </div>
           <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
@@ -369,6 +393,9 @@ export function CompanionConversationPage() {
               对话默认不保存
             </span>
             <span className="hidden sm:inline">Enter 发送，Shift + Enter 换行</span>
+            {input.length >= MAX_CHAT_INPUT_CHARS * 0.8 && (
+              <span>{input.length}/{MAX_CHAT_INPUT_CHARS}</span>
+            )}
           </div>
           <Link
             href="/support/end"

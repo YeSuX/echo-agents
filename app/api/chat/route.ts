@@ -33,10 +33,18 @@ import {
 } from "@/lib/safety/sse-response"
 import {
   PROMPT_INJECTION_SYSTEM_NOTE,
+  CONVERSATION_CONTINUITY_SYSTEM_NOTE,
   UPSTREAM_ERROR_MESSAGE,
   UPSTREAM_TIMEOUT_MESSAGE,
 } from "@/lib/safety/constants"
 import { recordUsageEvent } from "@/lib/safety/usage-monitor"
+import {
+  buildChatContext,
+  MAX_CHAT_REQUEST_BYTES,
+  MAX_CHAT_REQUEST_MESSAGES,
+  MAX_CHAT_MESSAGE_CHARS,
+  recentUserContext,
+} from "@/lib/chat-context"
 
 const KIMI_MODEL = "kimi-k2.5"
 
@@ -48,16 +56,19 @@ type ChatMode = "companion" | "guest"
 
 function parseMessages(value: Json): ChatMessage[] | null {
   if (!Array.isArray(value)) return null
+  if (value.length === 0 || value.length > MAX_CHAT_REQUEST_MESSAGES) return null
   const out: ChatMessage[] = []
   for (const m of value) {
     if (!isJsonRecord(m)) return null
     const role = m.role
     const content = m.content
-    if (role !== "user" && role !== "assistant") continue
+    if (role !== "user" && role !== "assistant") return null
     if (typeof content !== "string") return null
-    out.push({ role, content })
+    const clean = content.trim()
+    if (clean.length === 0 || clean.length > MAX_CHAT_MESSAGE_CHARS * 2) return null
+    out.push({ role, content: clean })
   }
-  if (out.length === 0) return null
+  if (out.length === 0 || out.at(-1)?.role !== "user") return null
   return out
 }
 
@@ -217,7 +228,14 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const declaredLength = Number(req.headers.get("content-length") ?? "0")
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_CHAT_REQUEST_BYTES) {
+      return jsonErrorResponse("对话内容过长，请结束当前对话后重新开始。", 413)
+    }
     const text = await req.text()
+    if (new TextEncoder().encode(text).byteLength > MAX_CHAT_REQUEST_BYTES) {
+      return jsonErrorResponse("对话内容过长，请结束当前对话后重新开始。", 413)
+    }
     const j = parseJson(text)
     if (!isJsonRecord(j)) {
       return jsonErrorResponse("Invalid JSON body", 400)
@@ -240,6 +258,7 @@ export async function POST(req: NextRequest) {
 
     const { mode, guestId, messages } = parsed
     const lastUser = lastUserContent(messages)
+    const routingContext = recentUserContext(messages)
     const injectionDetected = userMessagesInjectionDetected(messages)
 
     if (conversationHasCrisis(messages)) {
@@ -261,18 +280,19 @@ export async function POST(req: NextRequest) {
 
     let systemPrompt: string
     if (mode === "companion") {
-      const matched = matchCases(lastUser, 2)
+      const matched = matchCases(routingContext, 2)
       systemPrompt = getCompanionSystemPrompt(matched)
     } else {
       systemPrompt = getGuestSystemPrompt(guestId)
     }
-    systemPrompt = `${systemPrompt}\n\n${PROMPT_INJECTION_SYSTEM_NOTE}`
+    systemPrompt = `${systemPrompt}\n\n${CONVERSATION_CONTINUITY_SYSTEM_NOTE}\n\n${PROMPT_INJECTION_SYSTEM_NOTE}`
 
-    const llmMessages = sanitizeMessagesForLlm(messages)
+    const context = buildChatContext(messages)
+    const llmMessages = sanitizeMessagesForLlm(context.messages)
     const timeoutMs = kimiTimeoutMs()
     const abort = new AbortController()
     const timer = setTimeout(() => abort.abort(), timeoutMs)
-    const intents = detectIntent(lastUser)
+    const intents = detectIntent(routingContext)
     const selfHelpIds = selfHelpIdsForIntents(intents)
 
     const readable = new ReadableStream<Uint8Array>({

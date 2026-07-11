@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ArrowLeftIcon, SendIcon } from "lucide-react"
+import { ArrowLeftIcon, SendIcon, SquareIcon } from "lucide-react"
 
 import { AgentMarkdown } from "@/components/agent-markdown"
 import {
@@ -22,6 +22,10 @@ import { parseFetchErrorBody } from "@/lib/json-parse"
 import { sseItemsToPanelItems } from "@/lib/sse-self-help"
 import { applySseParseResult, parseSseDataLine } from "@/lib/sse-chat"
 import { cn } from "@/lib/utils"
+import {
+  MAX_CHAT_INPUT_CHARS,
+  toChatApiMessages,
+} from "@/lib/chat-context"
 
 const AGENT_OPENING =
   "你可以问我你想了解的，我会在愿意分享的范围内回答你。"
@@ -38,15 +42,6 @@ type ConversationPageProps = {
   guestId: string
   guestName: string
   initialMessages?: ConversationMessage[]
-}
-
-function toKimiMessages(messages: ConversationMessage[]) {
-  return messages
-    .filter((m) => m.role === "user" || m.role === "agent")
-    .map((m) => ({
-      role: m.role === "agent" ? ("assistant" as const) : ("user" as const),
-      content: m.content,
-    }))
 }
 
 function conversationUserText(messages: ConversationMessage[]): string {
@@ -116,7 +111,8 @@ export function ConversationPage({
     abortRef.current = new AbortController()
     const signal = abortRef.current.signal
 
-    const kimiMessages = toKimiMessages(nextMessages)
+    const kimiMessages = toChatApiMessages(nextMessages)
+    let fullContent = ""
 
     try {
       const res = await fetch("/api/chat", {
@@ -139,7 +135,6 @@ export function ConversationPage({
       const decoder = new TextDecoder()
       if (!reader) throw new Error("No response body")
 
-      let fullContent = ""
       let buffer = ""
       let sawDone = false
 
@@ -187,7 +182,21 @@ export function ConversationPage({
         },
       ])
     } catch (e) {
-      if (e instanceof Error && e.name === "AbortError") return
+      if (e instanceof Error && e.name === "AbortError") {
+        setStreamingContent("")
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `agent-${Date.now()}`,
+            role: "agent",
+            content: fullContent.trim()
+              ? `${fullContent.trim()}\n\n（已停止生成）`
+              : "已停下。你可以换个问题继续，或者先离开一会儿。",
+            isFallback: !fullContent.trim(),
+          },
+        ])
+        return
+      }
       setError(e instanceof Error ? e.message : "发送失败，请重试")
       setMessages((prev) => [
         ...prev,
@@ -317,17 +326,30 @@ export function ConversationPage({
             placeholder="输入你想问的…（例如 ta 的经历、态度或观点）"
             className="min-w-0"
             disabled={isSending}
+            maxLength={MAX_CHAT_INPUT_CHARS}
             aria-label="输入你想问的问题"
           />
-          <Button
-            type="button"
-            size="icon"
-            onClick={() => void handleSend()}
-            disabled={!input.trim() || isSending}
-            aria-label="发送"
-          >
-            <SendIcon className="size-4" />
-          </Button>
+          {isSending ? (
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              onClick={() => abortRef.current?.abort()}
+              aria-label="停止生成"
+            >
+              <SquareIcon className="size-3.5 fill-current" />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="icon"
+              onClick={() => void handleSend()}
+              disabled={!input.trim()}
+              aria-label="发送"
+            >
+              <SendIcon className="size-4" />
+            </Button>
+          )}
         </div>
       </div>
 

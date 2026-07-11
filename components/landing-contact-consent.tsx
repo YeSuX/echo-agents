@@ -9,6 +9,7 @@ import {
   ExternalLinkIcon,
   HeartHandshakeIcon,
   LockKeyholeIcon,
+  MessagesSquareIcon,
   PhoneIcon,
   ShieldCheckIcon,
 } from "lucide-react"
@@ -28,6 +29,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { SUPPORT_RESOURCES } from "@/data/support-resources"
+import { GUESTS } from "@/data/guests"
 
 const SAFE_EXIT_URL = "https://www.google.com"
 
@@ -59,7 +61,7 @@ export function LandingContactConsent() {
         </nav>
       </header>
 
-      <main className="mx-auto grid w-full max-w-6xl flex-1 items-center gap-10 px-5 py-8 sm:px-8 lg:grid-cols-[1.08fr_0.92fr] lg:gap-16 lg:py-12">
+      <main className="mx-auto grid w-full max-w-6xl items-center gap-10 px-5 py-8 sm:px-8 lg:grid-cols-[1.08fr_0.92fr] lg:gap-16 lg:py-12">
         <section aria-labelledby="welcome-heading" className="max-w-xl">
           <div className="mb-6 flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <HeartHandshakeIcon className="size-6" aria-hidden="true" />
@@ -231,10 +233,59 @@ export function LandingContactConsent() {
         </section>
       </main>
 
+      <section
+        className="border-y border-border/70 bg-primary/[0.025]"
+        aria-labelledby="guest-stories-heading"
+      >
+        <div className="mx-auto grid w-full max-w-6xl gap-6 px-5 py-7 sm:px-8 sm:py-9 md:grid-cols-[0.9fr_1.1fr] md:items-center md:gap-10">
+          <div>
+            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-primary">
+              <MessagesSquareIcon className="size-4" aria-hidden="true" />
+              另一种了解方式
+            </div>
+            <h2
+              id="guest-stories-heading"
+              className="text-2xl font-semibold tracking-tight sm:text-3xl"
+            >
+              听听嘉宾愿意分享的故事
+            </h2>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
+              和不同经历的嘉宾对话，了解他们如何面对关系、舆论、司法程序与日常生活。
+            </p>
+            <Button variant="outline" className="mt-5" asChild>
+              <Link href="/guests">
+                查看全部嘉宾
+                <ArrowRightIcon className="size-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-4 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
+            <div className="flex shrink-0 -space-x-3" aria-hidden="true">
+              {GUESTS.slice(0, 4).map((guest) => (
+                <Image
+                  key={guest.id}
+                  src={guest.avatar}
+                  alt=""
+                  width={64}
+                  height={64}
+                  className="size-12 rounded-full border-2 border-card object-cover sm:size-14"
+                />
+              ))}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold">9 位嘉宾，9 种不同的经验</p>
+              <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                所有姓名均为化名，可先浏览主题再决定是否进入对话。
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <footer className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-5 text-xs text-muted-foreground sm:px-8">
         <span>公益支持工具，不提供紧急救援服务</span>
         <nav className="flex items-center gap-4" aria-label="页脚导航">
-          <Link href="/guests" className="hover:text-foreground">嘉宾故事</Link>
           <Link href="/stories" className="hover:text-foreground">案例</Link>
           <Link href="/privacy" className="hover:text-foreground">隐私与数据</Link>
         </nav>

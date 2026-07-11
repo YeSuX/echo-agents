@@ -1,8 +1,8 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { UserIcon } from "lucide-react"
 
 import { GUESTS } from "@/data/guests"
 import { SupportResourcesDropdown } from "@/components/support-resources-dropdown"
@@ -67,18 +67,6 @@ function TriggerWarningDialog({
   )
 }
 
-/** 剪影占位：无真实头像时使用 */
-function GuestAvatarPlaceholder() {
-  return (
-    <div
-      className="flex size-16 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground sm:size-20"
-      aria-hidden
-    >
-      <UserIcon className="size-8 sm:size-10" />
-    </div>
-  )
-}
-
 export function GuestSelectContent() {
   const [dialogState, setDialogState] = useState<{
     open: boolean
@@ -92,7 +80,7 @@ export function GuestSelectContent() {
 
   return (
     <div className="min-h-screen bg-background font-sans">
-      <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
         {/* 头部：返回 + 标题 + 支持资源 */}
         <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
@@ -112,19 +100,25 @@ export function GuestSelectContent() {
           <SupportResourcesDropdown />
         </header>
 
-        {/* 嘉宾卡片网格：3×3 桌面，2 列平板，1 列移动 */}
+        {/* 嘉宾列表：桌面双列，移动端单列 */}
         <ul
-          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          className="grid grid-cols-1 gap-4 md:grid-cols-2"
           role="list"
         >
           {GUESTS.map((guest) => (
             <li key={guest.id}>
-              <Card className="flex h-full flex-col transition-shadow hover:shadow-md">
-                <CardHeader className="flex flex-row items-start gap-4 pb-2">
-                  <GuestAvatarPlaceholder />
+              <Card className="flex h-full flex-col border-border/80 transition-[border-color,box-shadow] hover:border-primary/25 hover:shadow-md">
+                <CardHeader className="flex flex-row items-center gap-4 pb-3">
+                  <Image
+                    src={guest.avatar}
+                    alt={`${guest.name}的插画头像`}
+                    width={80}
+                    height={80}
+                    className="size-16 shrink-0 rounded-full border border-border/70 object-cover sm:size-20"
+                  />
                   <div className="min-w-0 flex-1 space-y-1">
                     <p className="font-medium leading-none">{guest.name}</p>
-                    <p className="line-clamp-2 text-sm text-muted-foreground">
+                    <p className="text-sm leading-6 text-muted-foreground">
                       {guest.tagline}
                     </p>
                   </div>

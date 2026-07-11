@@ -1,15 +1,24 @@
-"use client";
+"use client"
 
-import Link from "next/link";
-import { AlertTriangle, ExternalLink, Phone, Heart } from "lucide-react";
+import Link from "next/link"
+import Image from "next/image"
+import {
+  AlertTriangleIcon,
+  ArrowRightIcon,
+  ChevronDownIcon,
+  ExternalLinkIcon,
+  HeartHandshakeIcon,
+  LockKeyholeIcon,
+  PhoneIcon,
+  ShieldCheckIcon,
+} from "lucide-react"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button"
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+} from "@/components/ui/collapsible"
 import {
   Dialog,
   DialogContent,
@@ -17,227 +26,219 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
-import { SUPPORT_RESOURCES } from "@/data/support-resources";
+} from "@/components/ui/dialog"
+import { SUPPORT_RESOURCES } from "@/data/support-resources"
 
-const SAFE_EXIT_URL = "https://www.google.com";
-const SUPPORT_CHAT_PATH = "/support";
+const SAFE_EXIT_URL = "https://www.google.com"
 
 export function LandingContactConsent() {
   return (
-    <div className="mx-auto w-full max-w-[560px] px-4 py-8 sm:px-6 sm:py-10">
-      <header className="mb-8 text-center">
-        <img
-          src="/logo.PNG"
-          alt="小荧"
-          className="mx-auto mb-3 h-20 w-20 rounded-full object-cover"
-        />
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          小荧
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          AI 影像性暴力相关困扰的支持与同伴对话
-        </p>
+    <div className="flex min-h-[100dvh] w-full flex-col bg-background">
+      <header className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-5 sm:px-8">
+        <Link
+          href="/"
+          className="flex items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="小荧首页"
+        >
+          <Image
+            src="/logo.PNG"
+            alt=""
+            width={36}
+            height={36}
+            className="size-9 rounded-full object-cover"
+          />
+          <span className="font-semibold tracking-tight">小荧</span>
+        </Link>
+        <nav className="flex items-center gap-1" aria-label="辅助导航">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/privacy">隐私说明</Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <a href="#support">支持资源</a>
+          </Button>
+        </nav>
       </header>
 
-      <section className="mb-6" aria-labelledby="product-heading">
-        <h2 id="product-heading" className="sr-only">
-          本产品是什么
-        </h2>
-        <p className="text-sm leading-relaxed text-foreground">
-          小荧提供温暖的同伴式对话、自助工具与科普内容。对话由 AI
-          在严格安全边界内回应；这不是你的错，每一步都可以按你的节奏来。
-        </p>
-      </section>
+      <main className="mx-auto grid w-full max-w-6xl flex-1 items-center gap-10 px-5 py-8 sm:px-8 lg:grid-cols-[1.08fr_0.92fr] lg:gap-16 lg:py-12">
+        <section aria-labelledby="welcome-heading" className="max-w-xl">
+          <div className="mb-6 flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <HeartHandshakeIcon className="size-6" aria-hidden="true" />
+          </div>
+          <h1
+            id="welcome-heading"
+            className="max-w-lg text-4xl font-semibold leading-[1.12] tracking-tight sm:text-5xl"
+          >
+            你不需要一个人处理这些
+          </h1>
+          <p className="mt-5 max-w-lg text-base leading-7 text-muted-foreground sm:text-lg">
+            小荧提供 AI 同伴对话、应对工具和可信支持资源。你可以少说一点，也可以随时停下。
+          </p>
+          <p className="mt-4 font-medium text-foreground">这不是你的错。</p>
 
-      <section className="mb-6" aria-label="触发警告与支持资源" role="region">
-        <Alert
-          variant="default"
-          className="border-amber-200 bg-amber-50/80 dark:border-amber-900/50 dark:bg-amber-950/30"
-        >
-          <AlertTriangle className="size-4 text-amber-600 dark:text-amber-500" />
-          <AlertTitle className="text-amber-800 dark:text-amber-200">
-            触发警告（Trigger Warning）
-          </AlertTitle>
-          <AlertDescription className="text-amber-800/90 dark:text-amber-200/90">
-            <span className="block">
-              内容涉及性暴力与创伤相关主题，可能引发不适或触发反应。
-            </span>
-            <span className="mt-1 block">
-              您可以随时离开页面；若需要支持，请使用下方「支持资源」。
-            </span>
-          </AlertDescription>
-        </Alert>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Button size="lg" className="h-12 px-6" asChild>
+              <Link href="/support">
+                寻求帮助
+                <ArrowRightIcon className="size-4" aria-hidden="true" />
+              </Link>
+            </Button>
+            <Button size="lg" variant="outline" className="h-12 px-6" asChild>
+              <Link href="/learn">先了解应对方法</Link>
+            </Button>
+          </div>
 
-        <div
-          id="support"
-          className="mt-4 scroll-mt-4 rounded-lg border bg-card p-4"
+          <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <LockKeyholeIcon className="size-4" aria-hidden="true" />
+              对话默认不保存
+            </span>
+            <a
+              href={SAFE_EXIT_URL}
+              className="rounded font-medium text-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              暂时离开此页
+            </a>
+          </div>
+        </section>
+
+        <section
+          className="overflow-hidden rounded-2xl border bg-card shadow-[0_18px_50px_-32px_oklch(0.32_0.08_315/0.28)]"
+          aria-label="安全说明"
         >
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-medium">
-            <Heart className="size-4 text-muted-foreground" />
-            支持资源
-          </h3>
-          <ul className="space-y-2 text-sm" role="list">
-            {SUPPORT_RESOURCES.slice(0, 3).map((item) => (
-              <li key={item.label}>
-                <a
-                  href={item.href}
-                  target={item.type === "link" ? "_blank" : undefined}
-                  rel={item.type === "link" ? "noopener noreferrer" : undefined}
-                  className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
-                >
-                  {item.type === "phone" ? (
-                    <Phone className="size-3.5" />
-                  ) : (
-                    <ExternalLink className="size-3" />
-                  )}
-                  {item.label}
-                  {item.description && (
-                    <span className="text-muted-foreground">
-                      （{item.description}）
-                    </span>
-                  )}
-                </a>
-              </li>
-            ))}
-            <Collapsible defaultOpen={false}>
-              <CollapsibleTrigger className="inline-flex items-center gap-1 text-left text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded">
-                更多资源
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <ul className="mt-2 space-y-1.5 pl-0 text-sm">
-                  {SUPPORT_RESOURCES.slice(3).map((item) => (
-                    <li key={item.label}>
-                      <a
-                        href={item.href}
-                        target={item.type === "link" ? "_blank" : undefined}
-                        rel={
-                          item.type === "link"
-                            ? "noopener noreferrer"
-                            : undefined
-                        }
-                        className="inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
-                      >
-                        {item.label}
+          <div className="border-b bg-primary/[0.035] p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <ShieldCheckIcon
+                className="mt-0.5 size-5 shrink-0 text-primary"
+                aria-hidden="true"
+              />
+              <div>
+                <h2 className="font-semibold">先确认你的安全与选择</h2>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  对话由 AI 回应，不能替代律师、医生或紧急服务。你始终可以决定说什么、何时离开。
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-5 p-5 sm:p-6">
+            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              <AlertTriangleIcon
+                className="mt-0.5 size-4 shrink-0"
+                aria-hidden="true"
+              />
+              <div>
+                <h3 className="text-sm font-semibold">内容提醒</h3>
+                <p className="mt-1 text-sm leading-6 opacity-90">
+                  页面涉及性暴力和创伤主题，可能引发不适。感到不舒服时，请立即停下或使用下方资源。
+                </p>
+              </div>
+            </div>
+
+            <div id="support" className="scroll-mt-6">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h3 className="font-semibold">需要真人支持</h3>
+                <span className="text-xs text-muted-foreground">可直接拨打</span>
+              </div>
+              <ul className="space-y-2" role="list">
+                {SUPPORT_RESOURCES.slice(0, 3).map((item) => (
+                  <li key={item.label}>
+                    <a
+                      href={item.href}
+                      target={item.type === "link" ? "_blank" : undefined}
+                      rel={item.type === "link" ? "noopener noreferrer" : undefined}
+                      className="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {item.type === "phone" ? (
+                        <PhoneIcon className="size-4 shrink-0 text-primary" />
+                      ) : (
+                        <ExternalLinkIcon className="size-4 shrink-0 text-primary" />
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium">{item.label}</span>
                         {item.description && (
-                          <span className="text-muted-foreground">
-                            （{item.description}）
+                          <span className="block text-xs text-muted-foreground">
+                            {item.description}
                           </span>
                         )}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </CollapsibleContent>
-            </Collapsible>
-          </ul>
-        </div>
-      </section>
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              <Collapsible>
+                <CollapsibleTrigger className="mt-2 flex min-h-10 w-full items-center justify-between rounded-lg px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  查看更多支持资源
+                  <ChevronDownIcon className="size-4" aria-hidden="true" />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <ul className="mt-2 space-y-1" role="list">
+                    {SUPPORT_RESOURCES.slice(3).map((item) => (
+                      <li key={item.label}>
+                        <a
+                          href={item.href}
+                          target={item.type === "link" ? "_blank" : undefined}
+                          rel={item.type === "link" ? "noopener noreferrer" : undefined}
+                          className="block rounded-lg px-3 py-2 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <span className="font-medium">{item.label}</span>
+                          {item.description && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              {item.description}
+                            </span>
+                          )}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
 
-      <Separator className="my-6" />
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="h-11 w-full justify-start">
+                  <LockKeyholeIcon className="size-4 text-primary" />
+                  查看数据与隐私承诺
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-h-[82vh] overflow-y-auto sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>你的信息由你决定</DialogTitle>
+                  <DialogDescription asChild>
+                    <div className="space-y-4 text-left text-sm leading-6">
+                      <p>默认情况下，系统不保存你的对话。</p>
+                      <div>
+                        <p className="font-medium text-foreground">主动授权后才会留存</p>
+                        <p>如果你选择留下故事，系统会先隐藏姓名、手机号、账号和链接等识别信息。</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-foreground">用途受到限制</p>
+                        <p>留存内容只用于影像性暴力监测和公益倡导，不用于商业分析或广告画像。</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-foreground">你可以撤回</p>
+                        <p>已经授权的内容也可以申请撤回。</p>
+                      </div>
+                    </div>
+                  </DialogDescription>
+                </DialogHeader>
+                <Button variant="outline" asChild>
+                  <Link href="/privacy">阅读完整隐私说明</Link>
+                </Button>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </section>
+      </main>
 
-      <section className="mb-6 rounded-lg border bg-muted/30 p-4">
-        <p className="text-sm font-medium">隐私承诺（摘要）</p>
-        <ul className="mt-2 space-y-1 text-xs leading-relaxed text-muted-foreground">
-          <li>• 默认「不留痕」：除非你主动授权，系统不存储对话</li>
-          <li>
-            • 若选择留下故事，AI 会自动脱敏（替换姓名、手机号等为 [已隐藏]）
-          </li>
-          <li>• 留存数据仅用于影像性暴力监测与政策倡导，不用于商业分析</li>
-          <li>• 你随时可撤回授权</li>
-        </ul>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="link" className="mt-2 h-auto p-0 text-xs">
-              查看完整说明
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>隐私承诺：安全、尊重与集体的力量</DialogTitle>
-              <DialogDescription
-                className="text-left text-sm leading-relaxed"
-                asChild
-              >
-                <div className="space-y-3">
-                  <p>
-                    在这里，你的安全是第一位的。这份约定旨在告诉你：我们如何保护你，以及我们如何聚沙成塔，共同反抗影像性暴力。
-                  </p>
-                  <p className="font-medium text-foreground">
-                    1. 默认「不留痕」，除非你决定发声
-                  </p>
-                  <p>
-                    除非你主动授权，否则系统不会存储你的对话信息。一旦关闭网页或结束会话，数据将从临时内存中抹除。如果你愿意将经历留给我们，用于协助监测此类事件的趋势、推动法律改进或进行公益倡导，你可以选择授权存储。
-                  </p>
-                  <p className="font-medium text-foreground">
-                    2. 自动「面纱」：你的真实身份会被隐藏
-                  </p>
-                  <p>
-                    即便你选择留下故事，AI
-                    也会在第一时间为你戴上「面纱」。当检测到姓名、手机号、具体社交账号、URL链接时，会将其替换为
-                    [已隐藏]。
-                  </p>
-                  <p className="font-medium text-foreground">
-                    3. 数据处理与安全边界
-                  </p>
-                  <p>
-                    我们采用标准的工业级传输加密技术（SSL/HTTPS），确保信息在发送过程中不会被截获。留存的数据仅限用于影像性暴力监测与政策倡导，绝不用于商业分析、画像建模或交给任何非法律/公益背景的第三方。
-                  </p>
-                  <p className="font-medium text-foreground">
-                    4. 你随时可以「反悔」
-                  </p>
-                  <p>
-                    如果你之前分享了故事，但现在感到不安，你可以随时联系我们或通过设置撤回授权。你对自己的经历拥有永久的「撤回权」。
-                  </p>
-                </div>
-              </DialogDescription>
-            </DialogHeader>
-            <Button variant="outline" asChild>
-              <Link href="/privacy">查看隐私页面</Link>
-            </Button>
-          </DialogContent>
-        </Dialog>
-      </section>
-
-      <section className="mb-8" aria-label="知情与选择" role="region">
-        <p className="mb-4 text-xs text-muted-foreground">
-          点击「寻求帮助」即表示您已阅读上述说明，并知悉内容可能带来的影响。
-        </p>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button variant="outline" asChild>
-            <a href={SAFE_EXIT_URL} target="_blank" rel="noopener noreferrer">
-              暂时离开
-            </a>
-          </Button>
-          <Button asChild size="lg">
-            <Link href={SUPPORT_CHAT_PATH}>寻求帮助</Link>
-          </Button>
-        </div>
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          <Link href="/guests" className="underline-offset-4 hover:underline">
-            想听嘉宾故事？进入嘉宾列表
-          </Link>
-          <span className="mx-1">·</span>
-          <Link href="/learn" className="underline-offset-4 hover:underline">
-            科普
-          </Link>
-          <span className="mx-1">·</span>
-          <Link href="/stories" className="underline-offset-4 hover:underline">
-            案例
-          </Link>
-        </p>
-      </section>
-
-      <footer className="text-center text-xs text-muted-foreground">
-        <p className="flex flex-wrap items-center justify-center gap-x-2">
-          <Link href="/privacy" className="underline-offset-4 hover:underline">
-            隐私与数据
-          </Link>
-          <span aria-hidden>·</span>
-          <span>联系我们</span>
-        </p>
+      <footer className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-5 text-xs text-muted-foreground sm:px-8">
+        <span>公益支持工具，不提供紧急救援服务</span>
+        <nav className="flex items-center gap-4" aria-label="页脚导航">
+          <Link href="/guests" className="hover:text-foreground">嘉宾故事</Link>
+          <Link href="/stories" className="hover:text-foreground">案例</Link>
+          <Link href="/privacy" className="hover:text-foreground">隐私与数据</Link>
+        </nav>
       </footer>
     </div>
-  );
+  )
 }

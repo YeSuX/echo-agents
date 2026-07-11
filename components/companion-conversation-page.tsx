@@ -1,8 +1,14 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ArrowLeftIcon, MenuIcon, SendIcon } from "lucide-react"
+import {
+  ArrowLeftIcon,
+  LockKeyholeIcon,
+  MenuIcon,
+  SendIcon,
+} from "lucide-react"
 
 import { CompanionLayout } from "@/components/companion-layout"
 import { QuickReplies } from "@/components/quick-replies"
@@ -14,8 +20,8 @@ import {
 } from "@/components/kimi-config-provider"
 import { SupportResourcesDropdown } from "@/components/support-resources-dropdown"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Sheet,
   SheetContent,
@@ -68,7 +74,7 @@ function persistStoryDraft(messages: ConversationMessage[]) {
 }
 
 export function CompanionConversationPage() {
-  const { kimiRequestFields } = useKimiConfig()
+  const { allowClientKimiKey, kimiRequestFields } = useKimiConfig()
   const [input, setInput] = useState("")
   const [messages, setMessages] = useState<ConversationMessage[]>([
     { id: "opening", role: "agent", content: COMPANION_OPENING },
@@ -81,9 +87,11 @@ export function CompanionConversationPage() {
   const [error, setError] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const hasConversation = messages.length > 1 || isSending
+  const showSidebar = selfHelpItems.length > 0
 
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" })
+    scrollRef.current?.scrollIntoView({ behavior: "auto" })
   }, [messages, streamingContent])
 
   const sendMessage = useCallback(
@@ -224,53 +232,54 @@ export function CompanionConversationPage() {
 
   const chatColumn = (
     <div className="flex h-dvh flex-col">
-      <header className="flex shrink-0 items-center justify-between gap-2 border-b bg-background px-3 py-3 sm:px-4">
+      <header className="flex min-h-16 shrink-0 items-center justify-between gap-2 border-b bg-background px-3 py-2 sm:px-5">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <Button variant="ghost" size="icon" className="shrink-0" asChild>
             <Link href="/" aria-label="返回首页">
               <ArrowLeftIcon className="size-5" />
             </Link>
           </Button>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 leading-tight">
             <p className="truncate text-sm font-medium sm:text-base">
               小荧 · {COMPANION_AGENT_LABEL}
             </p>
             <p className="truncate text-xs text-muted-foreground">
-              <Link href="/learn" className="underline-offset-2 hover:underline">
-                科普
-              </Link>
-              <span className="mx-1.5">·</span>
-              <Link
-                href="/stories"
-                className="underline-offset-2 hover:underline"
-              >
-                案例
-              </Link>
+              默认不保存对话
             </p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="lg:hidden"
-                type="button"
-              >
-                <MenuIcon className="size-4" />
-                <span className="sr-only">自助包</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-full p-0 sm:max-w-sm">
-              <SheetHeader className="sr-only">
-                <SheetTitle>智能自助包</SheetTitle>
-              </SheetHeader>
-              {sidebar}
-            </SheetContent>
-          </Sheet>
-          <KimiConfigTrigger />
+          {showSidebar && (
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="lg:hidden"
+                  type="button"
+                >
+                  <MenuIcon className="size-4" />
+                  自助工具
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full p-0 sm:max-w-sm">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>智能自助包</SheetTitle>
+                </SheetHeader>
+                {sidebar}
+              </SheetContent>
+            </Sheet>
+          )}
+          {allowClientKimiKey && <KimiConfigTrigger />}
           <SupportResourcesDropdown />
+          <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
+            <Link
+              href="/support/end"
+              onClick={() => persistStoryDraft(messagesRef.current)}
+            >
+              结束对话
+            </Link>
+          </Button>
         </div>
       </header>
 
@@ -283,13 +292,13 @@ export function CompanionConversationPage() {
         </div>
       )}
 
-      <ScrollArea className="min-h-0 flex-1">
+      <ScrollArea className="min-h-0 flex-1 bg-muted/[0.16]">
         <main
-          className="flex flex-col px-4 py-4"
+          className="flex min-h-full flex-col px-4 py-6 sm:py-8"
           aria-live="polite"
           aria-relevant="additions"
         >
-          <div className="mx-auto w-full max-w-2xl space-y-4">
+          <div className="mx-auto w-full max-w-3xl space-y-5">
             {messages.map((msg) =>
               msg.role === "agent" ? (
                 <AgentBubble
@@ -303,10 +312,27 @@ export function CompanionConversationPage() {
             )}
             {isSending && (
               <AgentBubble
-                content={streamingContent || "…"}
+                content={streamingContent || "正在整理回应…"}
                 streaming
                 className={cn(streamingContent && "opacity-90")}
               />
+            )}
+            {!hasConversation && (
+              <section className="pt-3" aria-labelledby="quick-start-heading">
+                <div className="mb-3">
+                  <h2 id="quick-start-heading" className="text-sm font-semibold">
+                    你现在最需要什么？
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    可以选择一个常见问题，也可以直接输入自己的情况。
+                  </p>
+                </div>
+                <QuickReplies
+                  replies={COMPANION_QUICK_REPLIES}
+                  onPick={handleQuickPick}
+                  disabled={isSending}
+                />
+              </section>
             )}
           </div>
           <div ref={scrollRef} />
@@ -314,49 +340,52 @@ export function CompanionConversationPage() {
       </ScrollArea>
 
       <div className="shrink-0 border-t bg-background">
-        <QuickReplies
-          replies={COMPANION_QUICK_REPLIES}
-          onPick={handleQuickPick}
-          disabled={isSending}
-        />
-        <div className="mx-auto flex max-w-2xl gap-2 p-4 pt-0">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="慢慢输入你想说的…"
-            className="min-w-0"
-            disabled={isSending}
-            aria-label="输入消息"
-          />
-          <Button
-            type="button"
-            size="icon"
-            onClick={handleSend}
-            disabled={!input.trim() || isSending}
-            aria-label="发送"
+        <div className="mx-auto max-w-3xl px-4 py-3">
+          <div className="flex items-end gap-2">
+            <Textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="慢慢输入你想说的…"
+              className="max-h-32 min-h-11 resize-none bg-background py-3"
+              rows={1}
+              disabled={isSending}
+              aria-label="输入消息"
+            />
+            <Button
+              type="button"
+              className="h-11 px-4"
+              onClick={handleSend}
+              disabled={!input.trim() || isSending}
+            >
+              <SendIcon className="size-4" />
+              <span className="hidden sm:inline">发送</span>
+              <span className="sr-only sm:hidden">发送</span>
+            </Button>
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <LockKeyholeIcon className="size-3.5" aria-hidden="true" />
+              对话默认不保存
+            </span>
+            <span className="hidden sm:inline">Enter 发送，Shift + Enter 换行</span>
+          </div>
+          <Link
+            href="/support/end"
+            className="mt-2 inline-flex text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:hidden"
+            onClick={() => persistStoryDraft(messagesRef.current)}
           >
-            <SendIcon className="size-4" />
-          </Button>
+            结束对话
+          </Link>
         </div>
       </div>
-
-      <footer className="shrink-0 border-t px-4 py-2 text-center text-xs text-muted-foreground">
-        <Link
-          href="/support/end"
-          className="underline-offset-4 hover:underline"
-          onClick={() => persistStoryDraft(messagesRef.current)}
-        >
-          结束对话
-        </Link>
-        <span className="mx-2">·</span>
-        <span>支持资源见右上角</span>
-      </footer>
     </div>
   )
 
   return (
-    <CompanionLayout sidebar={sidebar}>{chatColumn}</CompanionLayout>
+    <CompanionLayout sidebar={sidebar} showSidebar={showSidebar}>
+      {chatColumn}
+    </CompanionLayout>
   )
 }
 
@@ -372,10 +401,17 @@ function AgentBubble({
   className?: string
 }) {
   return (
-    <div className={cn("flex justify-start", className)}>
+    <div className={cn("flex items-start justify-start gap-3", className)}>
+      <Image
+        src="/logo.PNG"
+        alt=""
+        width={32}
+        height={32}
+        className="mt-0.5 size-8 shrink-0 rounded-full object-cover"
+      />
       <div
         className={cn(
-          "max-w-[85%] rounded-2xl rounded-bl-md px-4 py-2.5 text-sm",
+          "max-w-[min(88%,42rem)] rounded-2xl rounded-tl-md px-4 py-3 text-sm leading-6",
           isFallback
             ? "border border-border bg-muted/50 text-muted-foreground"
             : "bg-muted text-foreground",
@@ -397,7 +433,7 @@ function AgentBubble({
 function UserBubble({ content }: { content: string }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[85%] rounded-2xl rounded-br-md border bg-background px-4 py-2.5 text-sm text-foreground">
+      <div className="max-w-[min(88%,42rem)] rounded-2xl rounded-tr-md bg-primary px-4 py-3 text-sm leading-6 text-primary-foreground">
         <p className="whitespace-pre-wrap">{content}</p>
       </div>
     </div>

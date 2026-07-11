@@ -1,6 +1,11 @@
 "use client"
 
-import { ChevronDownIcon, ExternalLinkIcon, PhoneIcon } from "lucide-react"
+import {
+  ChevronDownIcon,
+  ExternalLinkIcon,
+  HeartHandshakeIcon,
+  PhoneIcon,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -17,7 +22,8 @@ export function SupportResourcesDropdown() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className="gap-1.5">
-          支持资源
+          <HeartHandshakeIcon className="size-4 text-primary" />
+          紧急支持
           <ChevronDownIcon className="size-4 opacity-60" />
         </Button>
       </DropdownMenuTrigger>

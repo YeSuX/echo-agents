@@ -215,17 +215,20 @@ export function KimiConfigTrigger({
 }: {
   className?: string
 }) {
-  const { openConfig } = useKimiConfig()
+  const { allowClientKimiKey, openConfig } = useKimiConfig()
+  if (!allowClientKimiKey) return null
+
   return (
     <Button
       type="button"
       variant="ghost"
-      size="icon"
+      size="sm"
       className={className}
       onClick={openConfig}
       aria-label="Kimi 接口配置"
     >
       <Settings2Icon className="size-5" />
+      <span className="hidden md:inline">接口设置</span>
     </Button>
   )
 }

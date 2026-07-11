@@ -13,17 +13,16 @@ export function QuickReplies({
 }: QuickRepliesProps) {
   return (
     <div
-      className="flex flex-wrap gap-2 px-4 pb-2"
+      className="grid grid-cols-1 gap-2 sm:grid-cols-2"
       role="group"
-      aria-label="快捷输入"
+      aria-label="选择一个常见问题开始"
     >
       {replies.map((q) => (
         <Button
           key={q}
           type="button"
-          variant="secondary"
-          size="sm"
-          className="h-auto rounded-full px-3 py-1.5 text-xs font-normal"
+          variant="outline"
+          className="h-auto min-h-12 justify-start whitespace-normal rounded-xl px-4 py-3 text-left text-sm font-normal leading-5 shadow-none"
           disabled={disabled}
           onClick={() => onPick(q)}
         >

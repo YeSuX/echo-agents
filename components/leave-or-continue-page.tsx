@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { ArrowLeftIcon, ExternalLinkIcon, PhoneIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -19,9 +20,11 @@ export function LeaveOrContinuePage() {
   return (
     <div className="flex min-h-dvh flex-col bg-background">
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-8">
-        <img
+        <Image
           src="/logo.PNG"
           alt="小荧"
+          width={128}
+          height={128}
           className="mx-auto mb-6 h-32 w-32 rounded-full object-cover"
         />
 

@@ -11,7 +11,7 @@ export const SELF_HELP_CATALOG: readonly SelfHelpCatalogEntry[] = [
     id: "takedown-letter",
     title: "下架函模板",
     description: "面向主流平台的申诉文书框架。",
-    href: "/self-help/takedown-template.md",
+    href: "/self-help/takedown-template.html",
     triggers: ["下架", "删除", "举报", "投诉", "平台", "申诉"],
   },
   {

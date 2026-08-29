@@ -10,16 +10,16 @@ export default function PrivacyPage() {
 
       <section className="mt-8 space-y-6 text-sm leading-relaxed">
         <div>
-          <h2 className="text-lg font-medium">1. 默认「不留痕」，除非你决定发声</h2>
+          <h2 className="text-lg font-medium">1. 匿名不留痕，登录后默认同步</h2>
           <p className="mt-2 text-muted-foreground">
             你的隐私由你掌控。
           </p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
             <li>
-              <strong>隐私模式（默认）</strong>：除非你主动授权，否则系统不会存储你的对话信息。一旦关闭网页或结束会话，数据将从临时内存中抹除。
+              <strong>未登录对话</strong>：系统不会将对话写入云端记录。关闭网页或结束会话后，内容不会出现在账号历史中。
             </li>
             <li>
-              <strong>云端对话记录（可选）</strong>：登录后，你可以单独开启云端保存。只有开启后的新消息会与当前账号关联并加密存储；开启前的临时对话不会自动上传。你可以随时关闭未来保存，或删除单条及全部记录。
+              <strong>登录用户云端同步（默认开启）</strong>：登录后发送的新消息会与当前账号关联并加密存储，用于跨设备恢复。登录前的临时对话不会自动上传。你可以随时关闭未来同步，或删除单条及全部记录；明确关闭后，系统不会自动重新开启。
             </li>
             <li>
               <strong>故事留存（可选）</strong>：如果你愿意将经历留给我们，用于协助我们监测此类事件的趋势、推动法律改进或进行公益倡导，你可以选择授权存储。你的痛苦不应被遗忘，它可以化作改变世界的力量。

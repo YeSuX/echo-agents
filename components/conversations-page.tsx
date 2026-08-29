@@ -124,10 +124,10 @@ export function ConversationsPage() {
           <div className="rounded-2xl border bg-background p-8 text-center">
             <p className="font-medium">还没有云端对话</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              在聊天页登录并主动开启保存后，新消息才会出现在这里。
+              登录后发送的新消息会默认加密同步，并出现在这里。
             </p>
             <Button className="mt-5" asChild>
-              <Link href="/support">开始临时对话</Link>
+              <Link href="/support">开始新对话</Link>
             </Button>
           </div>
         ) : (

@@ -94,7 +94,7 @@ export function LandingContactConsent() {
           <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
               <LockKeyholeIcon className="size-4" aria-hidden="true" />
-              对话默认不保存
+              未登录时对话不保存
             </span>
             <a
               href={SAFE_EXIT_URL}
@@ -210,10 +210,10 @@ export function LandingContactConsent() {
                   <DialogTitle>你的信息由你决定</DialogTitle>
                   <DialogDescription asChild>
                     <div className="space-y-4 text-left text-sm leading-6">
-                      <p>默认情况下，系统不保存你的对话。</p>
+                      <p>未登录时，对话只在当前页面临时处理，不会写入云端记录。</p>
                       <div>
-                        <p className="font-medium text-foreground">登录和保存是两次独立选择</p>
-                        <p>登录后仍不会自动保存。只有你主动开启云端记录后，新消息才会加密存储；此前的临时消息不会上传。</p>
+                        <p className="font-medium text-foreground">登录后默认开启云端同步</p>
+                        <p>登录用户的新消息会默认加密存储并用于跨设备恢复；登录前的临时消息不会自动上传。你可以在聊天页随时关闭同步。</p>
                       </div>
                       <div>
                         <p className="font-medium text-foreground">用途受到限制</p>

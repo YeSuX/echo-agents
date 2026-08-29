@@ -35,7 +35,7 @@ export function AuthControls({ compact = false }: { compact?: boolean }) {
             </Link>
           </Button>
         )}
-        <UserButton>
+        <UserButton userProfileMode="modal">
           <UserButton.MenuItems>
             <UserButton.Link
               label="对话记录"

@@ -40,14 +40,13 @@ export async function POST(request: Request) {
     return apiError("GUEST_NOT_FOUND", "Guest not found", 404)
   }
 
-  const conversation = await new ConversationRepository(getDb()).createConversation(
-    userId,
-    {
-      id: crypto.randomUUID(),
-      mode: parsed.data.mode,
-      guestId: parsed.data.mode === "guest" ? parsed.data.guestId : null,
-    },
-  )
+  const repository = new ConversationRepository(getDb())
+  await repository.initializePreferences(userId)
+  const conversation = await repository.createConversation(userId, {
+    id: crypto.randomUUID(),
+    mode: parsed.data.mode,
+    guestId: parsed.data.mode === "guest" ? parsed.data.guestId : null,
+  })
   if (!conversation) {
     return apiError("HISTORY_DISABLED", "Conversation history is disabled", 409)
   }

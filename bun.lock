@@ -6,6 +6,7 @@
       "name": "echo-agents",
       "dependencies": {
         "@base-ui/react": "^1.2.0",
+        "@clerk/localizations": "^4.15.8",
         "@clerk/nextjs": "^7.8.3",
         "@clerk/ui": "^1.31.0",
         "@hookform/resolvers": "^5.2.2",

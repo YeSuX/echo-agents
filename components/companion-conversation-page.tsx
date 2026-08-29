@@ -326,7 +326,11 @@ export function CompanionConversationPage({
               小荧 · {COMPANION_AGENT_LABEL}
             </p>
             <p className="truncate text-xs text-muted-foreground">
-              {persistence.historyEnabled ? "已加密保存到云端" : "默认不保存对话"}
+              {persistence.historyEnabled
+                ? "已加密同步到云端"
+                : persistence.isSignedIn
+                  ? "云端同步已关闭"
+                  : "临时对话，不保存"}
             </p>
           </div>
         </div>
@@ -471,8 +475,10 @@ export function CompanionConversationPage({
             <span className="inline-flex items-center gap-1.5">
               <LockKeyholeIcon className="size-3.5" aria-hidden="true" />
               {persistence.historyEnabled
-                ? "对话内容已加密保存，可在记录页删除"
-                : "对话默认不保存"}
+                ? "对话内容已加密同步，可在记录页删除"
+                : persistence.isSignedIn
+                  ? "云端同步已关闭，本次对话仅临时保留"
+                  : "未登录，对话仅临时保留"}
             </span>
             <span className="hidden sm:inline">Enter 发送，Shift + Enter 换行</span>
             {input.length >= MAX_CHAT_INPUT_CHARS * 0.8 && (

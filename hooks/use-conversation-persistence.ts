@@ -3,6 +3,7 @@
 import { useAuth } from "@clerk/nextjs"
 import { useCallback, useEffect, useRef, useState } from "react"
 
+import { CONVERSATION_PREFERENCE_VERSION } from "@/lib/conversation-preferences"
 import { parseFetchErrorBody } from "@/lib/json-parse"
 
 type ConversationMode = "companion" | "guest"
@@ -60,7 +61,7 @@ export function useConversationPersistence(options: {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         historyEnabled: enabled,
-        consentVersion: enabled ? "conversation-storage-v1" : null,
+        consentVersion: enabled ? CONVERSATION_PREFERENCE_VERSION : null,
       }),
     })
     if (!response.ok) throw await responseError(response)
@@ -70,7 +71,11 @@ export function useConversationPersistence(options: {
 
   const savedRequest = useCallback(
     async (content: string): Promise<Record<string, unknown> | null> => {
-      if (!isSignedIn || !historyEnabled) return null
+      if (!isSignedIn) return null
+      if (isLoading) {
+        throw new Error("云端同步设置仍在加载，请稍后重试")
+      }
+      if (!historyEnabled) return null
       let conversationId = conversationIdRef.current
       if (!conversationId) {
         const response = await fetch("/api/conversations", {
@@ -94,7 +99,7 @@ export function useConversationPersistence(options: {
         clientMessageId: crypto.randomUUID(),
         content,
       }
-    }, [historyEnabled, isSignedIn, options.guestId, options.mode],
+    }, [historyEnabled, isLoading, isSignedIn, options.guestId, options.mode],
   )
   const resumeConversation = useCallback((conversationId: string) => {
     conversationIdRef.current = conversationId

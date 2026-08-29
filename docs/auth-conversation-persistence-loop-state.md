@@ -5,7 +5,7 @@
 
 ## Current objective
 
-Add Clerk authentication and opt-in encrypted Cloudflare D1 conversation history without changing the default anonymous, non-persistent chat behavior.
+Add localized Clerk authentication and encrypted Cloudflare D1 conversation history while keeping anonymous chat non-persistent and enabling sync by default for signed-in users.
 
 ## Completed
 
@@ -19,7 +19,9 @@ Add Clerk authentication and opt-in encrypted Cloudflare D1 conversation history
 - Added owner-scoped conversation repository operations and cascade deletion.
 - Added preference, conversation CRUD, delete-all, and verified Clerk deletion webhook routes.
 - Added saved chat mode with server-authoritative history, idempotent client message IDs, final-content-only persistence, crisis persistence, and explicit persistence failure events.
-- Added opt-in controls to companion and guest chat, encrypted history list, resume, and delete flows.
+- Added sync controls to companion and guest chat, encrypted history list, resume, and delete flows.
+- Localized application-rendered Clerk authentication and account management components to Simplified Chinese.
+- Changed signed-in preference initialization to default-on without overriding an existing explicit opt-out; anonymous chat remains ephemeral.
 - Updated privacy, setup, design, and safety test documentation.
 - Added repository ownership, migration, encryption, AAD tamper, and context tests.
 
@@ -33,11 +35,15 @@ Add Clerk authentication and opt-in encrypted Cloudflare D1 conversation history
 
 ## Verification completed
 
+- Clerk `/sign-in` and `/sign-up` server output contains Simplified Chinese strings including account creation, email, continue, and account management labels; `UserButton` uses the localized in-app profile modal.
+- `bunx wrangler d1 migrations apply echo-agents-db --local`: `0002_enable_sync_by_default.sql` applied successfully; a repeated migration list reported no pending migrations.
+- `bun run test:persistence`: 7 passed, 0 failed, including default initialization, explicit opt-out preservation, and legacy preference migration.
+- `E2E_LIVE_LLM=0 bun run test:safety:e2e` after the default-sync revision: 9 passed, 1 explicitly skipped, 0 failed.
+- `bun run build` and `bun run build:cloudflare` after adding `zhCN` and default sync: passed with process-local test values for the still-unprovisioned webhook and encryption secrets.
 - `clerk doctor`: core checks passed; the development instance is configured and the production instance remains pending.
 - Local route smoke test: `/`, `/sign-in`, and `/sign-up` returned `200`; signed-out `/conversations` returned `307` to `/sign-in?redirect_url=/conversations`.
 - Real development-instance email verification completed; authenticated `/conversations`, preferences, and conversation list/create requests returned successful responses.
-- `bunx wrangler d1 migrations apply echo-agents-db --local`: passed; six migration commands applied.
-- `bun run test:persistence`: 5 passed, 0 failed.
+- `bunx wrangler d1 migrations apply echo-agents-db --local` for the initial schema: passed; six migration commands applied.
 - `bun run test:safety`: 46 passed, 0 failed.
 - `E2E_LIVE_LLM=0 bun run test:safety:e2e`: 9 passed, 1 explicitly skipped, 0 failed.
 - `LEGAL_GOLDEN_LIVE=0 bun run test:legal-golden`: 18 passed, 10 explicitly skipped, 0 failed.

@@ -10,6 +10,7 @@ import {
   type ConversationKeyring,
 } from "@/lib/crypto/conversation-codec"
 import { turnsToChatContext } from "@/lib/conversation-content"
+import { CONVERSATION_PREFERENCE_VERSION } from "@/lib/conversation-preferences"
 import { ConversationRepository } from "@/lib/db/conversation-repository"
 
 function keyring(): ConversationKeyring {
@@ -121,6 +122,46 @@ describe("conversation migration", () => {
     expect(remaining.count).toBe(0)
     database.close()
   })
+
+  it("enables legacy unconfigured users without overriding an explicit opt-out", () => {
+    const database = new Database(":memory:")
+    database.exec("PRAGMA foreign_keys = ON")
+    database.exec(
+      readFileSync(
+        resolve(process.cwd(), "migrations/0001_conversation_storage.sql"),
+        "utf8",
+      ),
+    )
+    const insertUser = database.query(
+      `INSERT INTO app_users (
+         clerk_user_id, history_enabled, consent_version,
+         consented_at, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, 1, 1)`,
+    )
+    insertUser.run("legacy-user", 0, null, null)
+    insertUser.run("opted-out-user", 0, "conversation-storage-v1", 1)
+
+    database.exec(
+      readFileSync(
+        resolve(process.cwd(), "migrations/0002_enable_sync_by_default.sql"),
+        "utf8",
+      ),
+    )
+
+    const getPreference = database.query(
+      `SELECT history_enabled, consent_version
+       FROM app_users WHERE clerk_user_id = ?`,
+    )
+    expect(getPreference.get("legacy-user")).toEqual({
+      history_enabled: 1,
+      consent_version: CONVERSATION_PREFERENCE_VERSION,
+    })
+    expect(getPreference.get("opted-out-user")).toEqual({
+      history_enabled: 0,
+      consent_version: "conversation-storage-v1",
+    })
+    database.close()
+  })
 })
 
 describe("saved context", () => {
@@ -157,6 +198,52 @@ describe("saved context", () => {
 })
 
 describe("conversation repository ownership", () => {
+  it("defaults new users on and preserves a later opt-out", async () => {
+    const miniflare = new Miniflare({
+      modules: true,
+      script: "export default { fetch() { return new Response('ok') } }",
+      d1Databases: ["DB"],
+    })
+    try {
+      const database = (await miniflare.getD1Database("DB")) as D1Database
+      const migration = readFileSync(
+        resolve(process.cwd(), "migrations/0001_conversation_storage.sql"),
+        "utf8",
+      )
+      for (const statement of migration.split(";")) {
+        if (statement.trim()) await database.prepare(statement).run()
+      }
+      const repository = new ConversationRepository(database)
+
+      expect(await repository.initializePreferences("new-user", 10)).toEqual({
+        historyEnabled: true,
+        consentVersion: CONVERSATION_PREFERENCE_VERSION,
+        consentedAt: 10,
+      })
+      await repository.setPreferences("new-user", false, null, 20)
+      expect(await repository.initializePreferences("new-user", 30)).toEqual({
+        historyEnabled: false,
+        consentVersion: CONVERSATION_PREFERENCE_VERSION,
+        consentedAt: 10,
+      })
+      await repository.setPreferences(
+        "direct-opt-out",
+        false,
+        CONVERSATION_PREFERENCE_VERSION,
+        40,
+      )
+      expect(
+        await repository.initializePreferences("direct-opt-out", 50),
+      ).toEqual({
+        historyEnabled: false,
+        consentVersion: CONVERSATION_PREFERENCE_VERSION,
+        consentedAt: null,
+      })
+    } finally {
+      await miniflare.dispose()
+    }
+  })
+
   it("scopes reads, writes, and deletes to the Clerk user", async () => {
     const miniflare = new Miniflare({
       modules: true,
@@ -176,13 +263,13 @@ describe("conversation repository ownership", () => {
       await repository.setPreferences(
         "user-a",
         true,
-        "conversation-storage-v1",
+        CONVERSATION_PREFERENCE_VERSION,
         1,
       )
       await repository.setPreferences(
         "user-b",
         true,
-        "conversation-storage-v1",
+        CONVERSATION_PREFERENCE_VERSION,
         1,
       )
       const conversation = await repository.createConversation(

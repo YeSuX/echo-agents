@@ -68,6 +68,8 @@ bun run cf-typegen
 | `/sign-in` / `/sign-up` | Clerk 登录与注册 |
 | `/conversations` | 登录用户的加密对话记录 |
 
+Clerk 登录、注册和应用内账号管理组件统一使用简体中文。匿名聊天不会写入云端；登录用户默认开启加密云端同步，可在聊天页关闭，并可在记录页删除历史。
+
 ## 相关链接
 
 - [Next.js 文档](https://nextjs.org/docs)

@@ -1,6 +1,6 @@
 # Clerk 登录注册与 Cloudflare D1 对话持久化设计
 
-> 状态：Proposed
+> 状态：Implemented locally; default-sync revision pending production rollout
 > 最后更新：2026-08-29
 > 适用项目：`echo-agents`
 > 目标版本：首个支持账号与云端对话历史的版本
@@ -11,13 +11,13 @@
 
 - 使用 Clerk 提供注册、登录、会话管理和账号管理；Next.js 服务端只信任 `auth()` 返回的 `userId`，不接受客户端传入的用户 ID。
 - 使用 Cloudflare D1 保存用户的“是否允许保存历史”偏好、会话元数据和对话轮次。
-- 保留当前无需登录的临时对话；只有登录用户主动开启“保存对话记录”后，才创建云端会话并持久化内容。
+- 保留当前无需登录的临时对话；登录用户首次读取偏好时默认开启云端同步，之后可以明确关闭且不会被系统自动重开。
 - Clerk 是身份数据的唯一事实来源。D1 不复制邮箱、姓名、头像等个人信息，只用 `clerk_user_id` 关联数据。
 - 对话正文使用 AES-256-GCM 做应用层加密后再写入 D1。D1 自带的静态加密仍作为基础设施层保护。
 - 已保存聊天使用服务端权威上下文：客户端只提交本轮用户输入和 `conversationId`，服务端从 D1 读取历史、验证所有权、构造模型上下文并保存最终审核后的回复。
 - 将现有 `/api/chat` 拆成临时模式和保存模式两条显式分支，不允许保存失败时静默回退到临时模式。
 
-这条路径比“登录后默认保存所有内容”多一个授权步骤，但它与项目现有“默认不留痕”承诺一致，也更适合当前涉及影像性暴力、危机披露和法律求助的敏感场景。
+匿名对话继续不落库，登录行为同时成为跨设备加密同步的边界。产品必须在登录入口、聊天状态和隐私页明确告知默认同步，并始终提供关闭与删除能力。
 
 ## 2. 背景与现状
 
@@ -28,7 +28,7 @@
 - `/api/chat` 接收客户端提交的完整消息数组，通过 SSE 返回 Kimi 流式结果。
 - `components/companion-conversation-page.tsx` 和 `components/conversation-page.tsx` 只在 React 内存中维护消息。
 - 结束对话时只把用户文本短暂放入 `sessionStorage`，用于匿名故事提交草稿。
-- `app/privacy/page.tsx`、Landing 页和系统提示均承诺“默认不保存对话”。
+- 原有 `app/privacy/page.tsx`、Landing 页和系统提示承诺“默认不保存对话”；默认同步改造必须同步修订这些文案，避免隐私承诺与实际行为不一致。
 - `wrangler.jsonc` 尚未声明 D1 binding，`next.config.ts` 尚未为 `next dev` 初始化 Cloudflare bindings。
 - 当前速率限制和本地指标依赖进程内 `Map`/本地文件；它们在多实例 Workers 中不是全局一致的持久化能力，但不属于本设计的核心改造范围。
 
@@ -48,7 +48,7 @@
 
 - 用户可使用 Clerk 完成注册、登录、退出和账号管理。
 - 未登录用户仍可进行默认不保存的临时对话。
-- 登录用户可显式开启或关闭未来对话的云端保存。
+- 登录用户默认开启未来对话的云端同步，并可显式关闭或重新开启。
 - 用户可查看、继续、归档、删除单个会话，以及删除全部对话数据。
 - 所有 D1 查询都由服务端根据 Clerk `userId` 做所有权过滤。
 - 流式生成、危机短路、输出替换、停止生成和失败重试在持久化后仍有确定语义。
@@ -66,24 +66,25 @@
 
 ## 4. 已选方案与备选方案
 
-### 4.1 方案 A：登录可选，保存显式开启（选定）
+### 4.1 方案 A：登录可选，登录后默认同步（选定）
 
-临时聊天保持公开；登录只是获得跨设备历史的前置条件，登录后仍需单独同意保存。
+临时聊天保持公开且不落库；登录用户的新消息默认进入加密云端历史，登录前的临时内容不自动上传。
 
 优点：
 
 - 保持当前低门槛求助体验。
-- 与“默认不留痕”一致。
-- 用户对身份暴露和内容留存拥有独立选择权。
+- 跨设备恢复无需额外设置步骤。
+- 用户仍可明确关闭未来同步并删除既有历史。
 
 代价：
 
-- UI 和 API 需要同时维护临时、保存两种会话状态。
+- UI 和 API 仍需同时维护匿名临时、登录同步、登录关闭三种状态。
 - 不能在用户登录后自动把之前的临时消息上传；如需上传，必须再次明确确认。
+- 必须在登录入口与隐私页显著披露默认同步，避免用户形成错误预期。
 
-### 4.2 方案 B：聊天强制登录，登录后默认保存
+### 4.2 方案 B：登录后仍需显式开启
 
-实现更简单，但会改变当前产品的隐私边界，也可能让处于危机或担心身份暴露的用户无法匿名进入。不建议作为当前版本默认方案。
+隐私边界更保守，但增加跨设备恢复的启用摩擦，不符合当前产品选择。
 
 ### 4.3 方案 C：匿名设备 ID + D1 保存
 
@@ -122,17 +123,16 @@ flowchart LR
 
 1. 全局导航展示 Clerk 的登录、注册入口；登录后展示 `UserButton`。
 2. 使用独立 `/sign-in`、`/sign-up` 页面承载 Clerk 预构建组件，便于直接链接和可访问性测试。
-3. 登录成功后不自动开启历史保存。
+3. 登录成功后首次读取偏好时默认开启云端同步，并展示清晰的同步状态与关闭入口。
 4. `/conversations`、用户数据设置和所有保存型 API 必须登录。
 5. `/support`、`/guests/[id]`、临时 `/api/chat` 继续公开。
 
-### 6.2 首次开启保存
+### 6.2 首次登录与默认同步
 
-1. 登录用户在聊天页点击“开启云端保存”。
-2. Dialog 明确说明保存内容、用途、删除方式、保留期和备份删除窗口。
-3. 用户确认后，服务端写入 `history_enabled = 1`、`consent_version` 和 `consented_at`。
-4. 只有确认完成后的新消息进入 D1。
-5. 当前临时消息默认不上传；可提供“从下一条开始保存”。若未来要支持上传当前会话，必须单独确认且清楚展示上传范围。
+1. 登录用户首次读取保存偏好时，服务端以 `INSERT ... ON CONFLICT DO NOTHING` 初始化 `history_enabled = 1` 和当前 policy version。
+2. 已存在的偏好记录不被初始化覆盖，因此明确关闭的用户不会被自动重开。
+3. 初始化完成后的新消息进入 D1；登录前或初始化前的临时消息不自动上传。
+4. 聊天页持续展示同步状态，并提供关闭入口；隐私页说明用途、删除方式、保留期和备份删除窗口。
 
 ### 6.3 关闭保存
 
@@ -183,7 +183,7 @@ Next.js 16 原生推荐根目录 `proxy.ts`，但其 runtime 固定为 Node.js�
 - 不记录完整 webhook body、邮箱或用户资料。
 - Clerk Dashboard 必须监控失败投递并支持 replay。
 
-不需要订阅 `user.created`：首次开启保存时可使用 `INSERT ... ON CONFLICT DO UPDATE` 同步创建最小 `app_users` 行，避免首次使用依赖 webhook 的最终一致性。
+不需要订阅 `user.created`：首次读取偏好时使用 `INSERT ... ON CONFLICT DO NOTHING` 创建最小 `app_users` 行，避免覆盖明确关闭的选择，也避免首次使用依赖 webhook 的最终一致性。
 
 ## 8. D1 数据模型
 
@@ -260,6 +260,8 @@ CREATE INDEX idx_turns_conversation_created
   ON conversation_turns(conversation_id, created_at ASC, id ASC);
 ```
 
+数据库列保留防御性的 `DEFAULT 0`；业务默认值由带 policy version 的初始化语句显式写入 `1`，避免其他非产品写入路径意外开启同步。`0002_enable_sync_by_default.sql` 只迁移旧数据中 `history_enabled = 0 AND consent_version IS NULL` 的“从未选择”记录，已有 version 的明确关闭记录保持关闭。
+
 使用“一轮一行”而不是“一条消息一行”的理由：当前产品严格是一问一答，SSE 期间需要把用户输入与对应回复状态绑定在一起；`pending/completed/stopped/failed` 也更容易形成可恢复状态。若未来支持工具调用、多助手消息或分支编辑，再迁移到通用 message/event 模型。
 
 ### 8.3 索引与容量
@@ -307,9 +309,9 @@ openssl rand -base64 32
 
 ```json
 {
-  "historyEnabled": false,
-  "consentVersion": null,
-  "consentedAt": null
+  "historyEnabled": true,
+  "consentVersion": "conversation-storage-v2-default-on",
+  "consentedAt": 1787971200000
 }
 ```
 
@@ -318,13 +320,14 @@ openssl rand -base64 32
 ```json
 {
   "historyEnabled": true,
-  "consentVersion": "conversation-storage-v1"
+  "consentVersion": "conversation-storage-v2-default-on"
 }
 ```
 
 规则：
 
 - 开启时 `consentVersion` 必填且必须等于服务端当前版本。
+- 首次 GET 会初始化缺失偏好为开启；已有记录只读取，不覆盖。
 - 关闭时不删除旧历史。
 - 未登录返回 `401 AUTH_REQUIRED`。
 
@@ -621,7 +624,8 @@ bun run test:safety:e2e
 |---|---|---|
 | Auth | 未登录访问历史 API | `401 AUTH_REQUIRED` |
 | Ownership | User A 读写/删 User B 会话 | 404 或 403，且数据库不变 |
-| Consent | 登录但未开启保存 | `409 HISTORY_DISABLED` |
+| Preference | 登录后首次读取偏好 | 初始化为开启并记录当前 policy version |
+| Preference | 明确关闭后再次初始化 | 保持关闭，不被默认值覆盖 |
 | Encryption | round-trip、错误 key、篡改 IV/AAD/ciphertext | 正常解密或稳定失败，不输出明文 |
 | Idempotency | 同一 client ID 重复提交 | 只调用一次模型，完成后重放 |
 | SSE | 最终审核替换 | 只保存 replacement，不保存 raw output |
@@ -635,9 +639,8 @@ bun run test:safety:e2e
 ### 17.3 人工验收
 
 - 未登录进入 `/support`，确认仍能临时聊天且文案为“不保存”。
-- 登录后未授权，确认没有任何 conversation/turn 行。
-- 开启保存，从下一条消息开始形成历史；换设备登录后可恢复。
-- 关闭保存后继续聊天，确认旧历史保留、新内容不入库。
+- 登录后直接发送消息，从下一条消息开始形成历史；换设备登录后可恢复。
+- 关闭同步后继续聊天并重新登录，确认关闭状态保持、旧历史保留、新内容不入库。
 - 删除历史后刷新、换设备、直接访问旧 URL 均不可读取。
 - Clerk Dashboard 删除账号，确认 webhook 成功且 D1 级联清理。
 - 在 Cloudflare preview 完成注册、session refresh、SSE、D1 读写全链路。

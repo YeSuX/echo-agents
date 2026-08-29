@@ -1,4 +1,4 @@
-export const CONVERSATION_CONSENT_VERSION = "conversation-storage-v1"
+import { CONVERSATION_PREFERENCE_VERSION } from "@/lib/conversation-preferences"
 
 export type ConversationMode = "companion" | "guest"
 export type ConversationStatus = "active" | "archived"
@@ -118,6 +118,24 @@ const TURN_COLUMNS = `
 
 export class ConversationRepository {
   constructor(private readonly db: D1Database) {}
+
+  async initializePreferences(
+    userId: string,
+    now = Date.now(),
+  ): Promise<ConversationPreferences> {
+    await this.db
+      .prepare(
+        `INSERT INTO app_users (
+           clerk_user_id, history_enabled, consent_version,
+           consented_at, created_at, updated_at
+         ) VALUES (?, 1, ?, ?, ?, ?)
+         ON CONFLICT(clerk_user_id) DO NOTHING`,
+      )
+      .bind(userId, CONVERSATION_PREFERENCE_VERSION, now, now, now)
+      .run()
+
+    return this.getPreferences(userId)
+  }
 
   async getPreferences(userId: string): Promise<ConversationPreferences> {
     const row = await this.db

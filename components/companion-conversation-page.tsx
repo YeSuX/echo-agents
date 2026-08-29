@@ -12,6 +12,8 @@ import {
 } from "lucide-react"
 
 import { CompanionLayout } from "@/components/companion-layout"
+import { AuthControls } from "@/components/auth-controls"
+import { ConversationSaveControl } from "@/components/conversation-save-control"
 import { QuickReplies } from "@/components/quick-replies"
 import { SelfHelpSidebar } from "@/components/self-help-sidebar"
 import { AgentMarkdown } from "@/components/agent-markdown"
@@ -45,6 +47,7 @@ import {
   MAX_CHAT_INPUT_CHARS,
   toChatApiMessages,
 } from "@/lib/chat-context"
+import { useConversationPersistence } from "@/hooks/use-conversation-persistence"
 
 type MessageRole = "agent" | "user"
 type ConversationMessage = {
@@ -69,8 +72,16 @@ function persistStoryDraft(messages: ConversationMessage[]) {
   sessionStorage.setItem("companion-story-draft", draft)
 }
 
-export function CompanionConversationPage() {
+export function CompanionConversationPage({
+  initialConversationId,
+}: {
+  initialConversationId?: string
+}) {
   const { allowClientKimiKey, kimiRequestFields } = useKimiConfig()
+  const persistence = useConversationPersistence({
+    mode: "companion",
+  })
+  const { isSignedIn, resumeConversation } = persistence
   const [input, setInput] = useState("")
   const [messages, setMessages] = useState<ConversationMessage[]>([
     { id: "opening", role: "agent", content: COMPANION_OPENING },
@@ -89,6 +100,63 @@ export function CompanionConversationPage() {
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "auto" })
   }, [messages, streamingContent])
+
+  useEffect(() => {
+    if (!initialConversationId || !isSignedIn) return
+    let cancelled = false
+    void fetch(`/api/conversations/${initialConversationId}`, {
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("无法读取这段对话")
+        return (await response.json()) as {
+          conversation: { mode: string }
+          turns: Array<{
+            id: string
+            userContent: string
+            assistantContent: string | null
+            status: "pending" | "completed" | "stopped" | "failed"
+          }>
+        }
+      })
+      .then((body) => {
+        if (cancelled || body.conversation.mode !== "companion") return
+        resumeConversation(initialConversationId)
+        const restored: ConversationMessage[] = [
+          { id: "opening", role: "agent", content: COMPANION_OPENING },
+        ]
+        for (const turn of body.turns) {
+          restored.push({
+            id: `${turn.id}-user`,
+            role: "user",
+            content: turn.userContent,
+          })
+          if (turn.status === "completed" && turn.assistantContent) {
+            restored.push({
+              id: `${turn.id}-agent`,
+              role: "agent",
+              content: turn.assistantContent,
+            })
+          } else if (turn.status !== "pending") {
+            restored.push({
+              id: `${turn.id}-status`,
+              role: "agent",
+              content: "这次回复没有完整保存，你可以重新发送上一条消息。",
+              isFallback: true,
+            })
+          }
+        }
+        setMessages(restored)
+      })
+      .catch((cause) => {
+        if (!cancelled) {
+          setError(cause instanceof Error ? cause.message : "读取对话失败")
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [initialConversationId, isSignedIn, resumeConversation])
 
   const sendMessage = useCallback(
     async (rawText: string) => {
@@ -112,18 +180,19 @@ export function CompanionConversationPage() {
 
       abortRef.current = new AbortController()
       const signal = abortRef.current.signal
-      const kimiMessages = toChatApiMessages(nextMessages)
       let fullContent = ""
 
       try {
+        const savedBody = await persistence.savedRequest(text)
+        const requestBody = savedBody ?? {
+          persistence: "ephemeral",
+          mode: "companion",
+          messages: toChatApiMessages(nextMessages),
+        }
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            mode: "companion",
-            messages: kimiMessages,
-            ...kimiRequestFields,
-          }),
+          body: JSON.stringify({ ...requestBody, ...kimiRequestFields }),
           signal,
         })
 
@@ -159,6 +228,9 @@ export function CompanionConversationPage() {
             if (parsed.kind === "self_help") {
               const panel = sseItemsToPanelItems(parsed.items)
               setSelfHelpItems((prev) => mergeSelfHelpDeduped(prev, panel))
+            }
+            if (parsed.kind === "persistence_error") {
+              setError("回复已生成，但未能写入云端记录。请先复制内容后重试。")
             }
           }
         }
@@ -214,7 +286,7 @@ export function CompanionConversationPage() {
         abortRef.current = null
       }
     },
-    [isSending, messages, kimiRequestFields],
+    [isSending, messages, kimiRequestFields, persistence],
   )
 
   const handleSend = useCallback(() => {
@@ -254,7 +326,7 @@ export function CompanionConversationPage() {
               小荧 · {COMPANION_AGENT_LABEL}
             </p>
             <p className="truncate text-xs text-muted-foreground">
-              默认不保存对话
+              {persistence.historyEnabled ? "已加密保存到云端" : "默认不保存对话"}
             </p>
           </div>
         </div>
@@ -281,6 +353,14 @@ export function CompanionConversationPage() {
             </Sheet>
           )}
           {allowClientKimiKey && <KimiConfigTrigger />}
+          <ConversationSaveControl
+            isSignedIn={persistence.isSignedIn}
+            historyEnabled={persistence.historyEnabled}
+            isLoading={persistence.isLoading}
+            onEnable={persistence.enableHistory}
+            onDisable={persistence.disableHistory}
+          />
+          <AuthControls compact />
           <SupportResourcesDropdown />
           <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
             <Link
@@ -390,7 +470,9 @@ export function CompanionConversationPage() {
           <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
               <LockKeyholeIcon className="size-3.5" aria-hidden="true" />
-              对话默认不保存
+              {persistence.historyEnabled
+                ? "对话内容已加密保存，可在记录页删除"
+                : "对话默认不保存"}
             </span>
             <span className="hidden sm:inline">Enter 发送，Shift + Enter 换行</span>
             {input.length >= MAX_CHAT_INPUT_CHARS * 0.8 && (

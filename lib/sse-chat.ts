@@ -10,6 +10,7 @@ export type SseParseResult =
   | { kind: "content"; content: string }
   | { kind: "content_replace"; content: string }
   | { kind: "self_help"; items: SelfHelpSseItem[] }
+  | { kind: "persistence_error"; code: string }
   | { kind: "done" }
   | { kind: "ignored" }
 
@@ -51,6 +52,9 @@ export function parseSseDataLine(line: string): SseParseResult {
       return { kind: "content_replace", content: replaceContent }
     }
     return { kind: "ignored" }
+  }
+  if (t === "persistence_error" && typeof root.code === "string") {
+    return { kind: "persistence_error", code: root.code }
   }
   const c = root.content
   if (typeof c === "string") return { kind: "content", content: c }

@@ -330,6 +330,17 @@ describe("SSE content_replace protocol", () => {
     }
   })
 
+  it("parses persistence errors without changing visible content", () => {
+    const parsed = parseSseDataLine(
+      'data: {"type":"persistence_error","code":"FINAL_WRITE_FAILED"}',
+    )
+    assert.equal(parsed.kind, "persistence_error")
+    if (parsed.kind === "persistence_error") {
+      assert.equal(parsed.code, "FINAL_WRITE_FAILED")
+      assert.equal(applySseParseResult(parsed, "visible answer"), "visible answer")
+    }
+  })
+
   it("applySseParseResult replaces accumulated stream", () => {
     let full = "违规"
     full = applySseParseResult(

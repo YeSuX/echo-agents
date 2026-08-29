@@ -6,7 +6,7 @@
  *
  * 运行：
  *   bun run test:legal-golden
- *   KIMI_API_KEY=sk-... bun run test:legal-golden
+ *   LEGAL_GOLDEN_LIVE=1 KIMI_API_KEY=sk-... bun run test:legal-golden
  */
 
 import assert from "node:assert/strict"
@@ -26,6 +26,7 @@ const BASE_URL = (process.env.E2E_BASE_URL ?? "http://localhost:3000").replace(
   /\/$/,
   "",
 )
+const LIVE_ENABLED = process.env.LEGAL_GOLDEN_LIVE === "1"
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..")
 
 function assertGoldenCaseShape(c: LegalGoldenCase): void {
@@ -127,6 +128,7 @@ describe("legal golden evaluator (offline exemplars)", () => {
   for (const [id, bad] of Object.entries(EXEMPLAR_FAIL)) {
     it(`${id}: exemplar fail response fails`, () => {
       const c = LEGAL_GOLDEN_CASES.find((x) => x.id === id)!
+      assert.ok(bad)
       const r = evaluateLegalGoldenResponse(
         bad,
         c.mustMatchAny,
@@ -139,12 +141,17 @@ describe("legal golden evaluator (offline exemplars)", () => {
 
 describe("legal golden live regression (optional)", () => {
   before(async () => {
+    if (!LIVE_ENABLED) return
     const res = await fetch(BASE_URL, { signal: AbortSignal.timeout(5000) })
     assert.ok(res.ok, `Dev server required at ${BASE_URL}`)
   })
 
   for (const c of LEGAL_GOLDEN_CASES) {
     it(`${c.id}: live API — ${c.title}`, async (t) => {
+      if (!LIVE_ENABLED) {
+        t.skip("LEGAL_GOLDEN_LIVE is not enabled")
+        return
+      }
       const apiKey = process.env.KIMI_API_KEY?.trim()
       if (!apiKey) {
         t.skip("KIMI_API_KEY not set — skipping live legal golden regression")

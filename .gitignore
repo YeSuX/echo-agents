@@ -20,6 +20,7 @@
 
 # opennext (Cloudflare Workers build)
 .open-next/
+.wrangler/
 
 # production
 /build

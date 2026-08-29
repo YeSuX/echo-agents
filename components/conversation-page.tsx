@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { ArrowLeftIcon, SendIcon, SquareIcon } from "lucide-react"
 
 import { AgentMarkdown } from "@/components/agent-markdown"
+import { AuthControls } from "@/components/auth-controls"
+import { ConversationSaveControl } from "@/components/conversation-save-control"
 import {
   KimiConfigTrigger,
   useKimiConfig,
@@ -26,6 +28,7 @@ import {
   MAX_CHAT_INPUT_CHARS,
   toChatApiMessages,
 } from "@/lib/chat-context"
+import { useConversationPersistence } from "@/hooks/use-conversation-persistence"
 
 const AGENT_OPENING =
   "你可以问我你想了解的，我会在愿意分享的范围内回答你。"
@@ -42,6 +45,7 @@ type ConversationPageProps = {
   guestId: string
   guestName: string
   initialMessages?: ConversationMessage[]
+  initialConversationId?: string
 }
 
 function conversationUserText(messages: ConversationMessage[]): string {
@@ -63,8 +67,14 @@ export function ConversationPage({
   guestId,
   guestName,
   initialMessages = [],
+  initialConversationId,
 }: ConversationPageProps) {
   const { kimiRequestFields } = useKimiConfig()
+  const persistence = useConversationPersistence({
+    mode: "guest",
+    guestId,
+  })
+  const { isSignedIn, resumeConversation } = persistence
   const [input, setInput] = useState("")
   const [messages, setMessages] = useState<ConversationMessage[]>(() => {
     if (initialMessages.length > 0) return initialMessages
@@ -89,6 +99,69 @@ export function ConversationPage({
     scrollRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, streamingContent])
 
+  useEffect(() => {
+    if (!initialConversationId || !isSignedIn) return
+    let cancelled = false
+    void fetch(`/api/conversations/${initialConversationId}`, {
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("无法读取这段对话")
+        return (await response.json()) as {
+          conversation: { mode: string; guestId: string | null }
+          turns: Array<{
+            id: string
+            userContent: string
+            assistantContent: string | null
+            status: "pending" | "completed" | "stopped" | "failed"
+          }>
+        }
+      })
+      .then((body) => {
+        if (
+          cancelled ||
+          body.conversation.mode !== "guest" ||
+          body.conversation.guestId !== guestId
+        ) {
+          return
+        }
+        resumeConversation(initialConversationId)
+        const restored: ConversationMessage[] = [
+          { id: "opening", role: "agent", content: AGENT_OPENING },
+        ]
+        for (const turn of body.turns) {
+          restored.push({
+            id: `${turn.id}-user`,
+            role: "user",
+            content: turn.userContent,
+          })
+          if (turn.status === "completed" && turn.assistantContent) {
+            restored.push({
+              id: `${turn.id}-agent`,
+              role: "agent",
+              content: turn.assistantContent,
+            })
+          } else if (turn.status !== "pending") {
+            restored.push({
+              id: `${turn.id}-status`,
+              role: "agent",
+              content: "这次回复没有完整保存，你可以重新发送上一条消息。",
+              isFallback: true,
+            })
+          }
+        }
+        setMessages(restored)
+      })
+      .catch((cause) => {
+        if (!cancelled) {
+          setError(cause instanceof Error ? cause.message : "读取对话失败")
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [guestId, initialConversationId, isSignedIn, resumeConversation])
+
   const handleSend = useCallback(async () => {
     const text = input.trim()
     if (!text || isSending) return
@@ -111,18 +184,19 @@ export function ConversationPage({
     abortRef.current = new AbortController()
     const signal = abortRef.current.signal
 
-    const kimiMessages = toChatApiMessages(nextMessages)
     let fullContent = ""
 
     try {
+      const savedBody = await persistence.savedRequest(text)
+      const requestBody = savedBody ?? {
+        persistence: "ephemeral",
+        guestId,
+        messages: toChatApiMessages(nextMessages),
+      }
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          guestId,
-          messages: kimiMessages,
-          ...kimiRequestFields,
-        }),
+        body: JSON.stringify({ ...requestBody, ...kimiRequestFields }),
         signal,
       })
 
@@ -157,6 +231,9 @@ export function ConversationPage({
           if (parsed.kind === "self_help") {
             const panel = sseItemsToPanelItems(parsed.items)
             setSelfHelpItems((prev) => mergeSelfHelpDeduped(prev, panel))
+          }
+          if (parsed.kind === "persistence_error") {
+            setError("回复已生成，但未能写入云端记录。请先复制内容后重试。")
           }
         }
       }
@@ -211,7 +288,7 @@ export function ConversationPage({
       setIsSending(false)
       abortRef.current = null
     }
-  }, [guestId, input, isSending, messages, kimiRequestFields])
+  }, [guestId, input, isSending, messages, kimiRequestFields, persistence])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -252,6 +329,14 @@ export function ConversationPage({
           </div>
         </div>
         <KimiConfigTrigger />
+        <ConversationSaveControl
+          isSignedIn={persistence.isSignedIn}
+          historyEnabled={persistence.historyEnabled}
+          isLoading={persistence.isLoading}
+          onEnable={persistence.enableHistory}
+          onDisable={persistence.disableHistory}
+        />
+        <AuthControls compact />
         <SupportResourcesDropdown />
       </header>
 

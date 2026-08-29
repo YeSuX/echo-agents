@@ -41,6 +41,17 @@ bun run test:legal-golden # 法律问句 golden 回归；live 需 KIMI_API_KEY
 
 - `KIMI_API_KEY`：Moonshot Kimi API Key（对话接口需要；也可仅在浏览器弹窗中配置）
 - `KIMI_BASE_URL`：可选，默认 `https://api.moonshot.cn/v1`
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`：Clerk frontend publishable key
+- `CLERK_SECRET_KEY`：Clerk server secret
+- `CLERK_WEBHOOK_SIGNING_SECRET`：Clerk `user.deleted` webhook verification secret
+- `CONVERSATION_ENCRYPTION_KEY_V1`：32-byte Base64 key，用于对话正文 AES-GCM 加密
+
+Cloudflare D1 使用 `DB` binding。仓库内的 `database_id` 是全零占位符；创建远端数据库并确认数据 location 后，必须替换为真实 ID。创建本地 schema：
+
+```bash
+bunx wrangler d1 migrations apply echo-agents-db --local
+bun run cf-typegen
+```
 
 在 **同伴对话** 与 **嘉宾对话** 页顶栏点击 **齿轮按钮**，可打开 shadcn `Dialog`，将 `KIMI_API_KEY` / `KIMI_BASE_URL` 存入 **localStorage**；调用 `/api/chat` 时会随请求体带上，**优先于**服务端环境变量。点击「清除本地配置」后恢复为仅使用 `.env`。
 
@@ -53,7 +64,9 @@ bun run test:legal-golden # 法律问句 golden 回归；live 需 KIMI_API_KEY
 | `/support/end` | 结束页与可选匿名分享 |
 | `/guests` / `/guests/[id]` | 嘉宾叙事对话（保留） |
 | `/learn` / `/stories` | 科普与案例 |
-| `/privacy` | 隐私说明占位 |
+| `/privacy` | 隐私与对话存储说明 |
+| `/sign-in` / `/sign-up` | Clerk 登录与注册 |
+| `/conversations` | 登录用户的加密对话记录 |
 
 ## 相关链接
 

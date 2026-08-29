@@ -6,8 +6,21 @@
   "compatibility_date": "2026-03-02",
   "compatibility_flags": ["nodejs_compat"],
   "secrets": {
-    "required": ["KIMI_API_KEY"]
+    "required": [
+      "KIMI_API_KEY",
+      "CLERK_SECRET_KEY",
+      "CLERK_WEBHOOK_SIGNING_SECRET",
+      "CONVERSATION_ENCRYPTION_KEY_V1"
+    ]
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "echo-agents-db",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"

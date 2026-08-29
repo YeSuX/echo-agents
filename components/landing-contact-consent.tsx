@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { AuthControls } from "@/components/auth-controls"
 import {
   Collapsible,
   CollapsibleContent,
@@ -58,6 +59,7 @@ export function LandingContactConsent() {
           <Button variant="ghost" size="sm" asChild>
             <a href="#support">支持资源</a>
           </Button>
+          <AuthControls />
         </nav>
       </header>
 
@@ -210,16 +212,16 @@ export function LandingContactConsent() {
                     <div className="space-y-4 text-left text-sm leading-6">
                       <p>默认情况下，系统不保存你的对话。</p>
                       <div>
-                        <p className="font-medium text-foreground">主动授权后才会留存</p>
-                        <p>如果你选择留下故事，系统会先隐藏姓名、手机号、账号和链接等识别信息。</p>
+                        <p className="font-medium text-foreground">登录和保存是两次独立选择</p>
+                        <p>登录后仍不会自动保存。只有你主动开启云端记录后，新消息才会加密存储；此前的临时消息不会上传。</p>
                       </div>
                       <div>
                         <p className="font-medium text-foreground">用途受到限制</p>
-                        <p>留存内容只用于影像性暴力监测和公益倡导，不用于商业分析或广告画像。</p>
+                        <p>对话记录只用于向你恢复历史和继续聊天，不用于广告画像；匿名故事投稿仍使用独立授权和脱敏流程。</p>
                       </div>
                       <div>
                         <p className="font-medium text-foreground">你可以撤回</p>
-                        <p>已经授权的内容也可以申请撤回。</p>
+                        <p>你可以关闭未来保存，并在对话记录页删除单条或全部历史。</p>
                       </div>
                     </div>
                   </DialogDescription>

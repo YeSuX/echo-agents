@@ -6,7 +6,7 @@
  *
  * 可选环境变量：
  * - E2E_BASE_URL=http://localhost:3000
- * - KIMI_API_KEY=...（设置后跑需真实 LLM 的用例）
+ * - E2E_LIVE_LLM=1 KIMI_API_KEY=...（显式开启真实 LLM 用例）
  */
 
 import assert from "node:assert/strict"
@@ -225,6 +225,10 @@ describe("safety guardrails E2E (optional LLM)", () => {
   })
 
   it("S-03 / ST-02: live LLM — skips without KIMI_API_KEY", async (t) => {
+    if (process.env.E2E_LIVE_LLM !== "1") {
+      t.skip("E2E_LIVE_LLM is not enabled")
+      return
+    }
     const apiKey = process.env.KIMI_API_KEY?.trim()
     if (!apiKey) {
       t.skip("KIMI_API_KEY not set — skipping live LLM moderation test")

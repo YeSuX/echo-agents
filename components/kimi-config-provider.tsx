@@ -63,8 +63,8 @@ export function KimiConfigProvider({
   useEffect(() => {
     let cancelled = false
     void fetch("/api/config")
-      .then((r) => r.json())
-      .then((data: { allowClientKimiKey?: boolean }) => {
+      .then(async (r) => (await r.json()) as { allowClientKimiKey?: boolean })
+      .then((data) => {
         if (cancelled) return
         const allowed = data.allowClientKimiKey === true
         setAllowClientKimiKey(allowed)

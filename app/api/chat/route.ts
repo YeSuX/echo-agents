@@ -1,5 +1,17 @@
 import { NextRequest } from "next/server"
 import OpenAI from "openai"
+import { authenticatedUserId } from "@/lib/auth/require-user"
+import {
+  conversationKeyringFromEnv,
+  decryptConversationContent,
+  encryptConversationContent,
+} from "@/lib/crypto/conversation-codec"
+import { decryptTurns, turnsToChatContext } from "@/lib/conversation-content"
+import {
+  ConversationRepository,
+  type EncryptedTurnRecord,
+} from "@/lib/db/conversation-repository"
+import { getDb } from "@/lib/db/d1"
 import { getCompanionSystemPrompt } from "@/lib/companion-agent"
 import { getGuestSystemPrompt } from "@/lib/guest-agent"
 import { isJsonRecord, parseJson, type Json } from "@/lib/json-parse"
@@ -25,6 +37,7 @@ import {
 } from "@/lib/safety/safe-log"
 import {
   createCrisisSseStream,
+  createTextSseStream,
   encodeSseData,
   encodeSseDone,
   jsonErrorResponse,
@@ -34,6 +47,7 @@ import {
 import {
   PROMPT_INJECTION_SYSTEM_NOTE,
   CONVERSATION_CONTINUITY_SYSTEM_NOTE,
+  CRISIS_FIXED_RESPONSE,
   UPSTREAM_ERROR_MESSAGE,
   UPSTREAM_TIMEOUT_MESSAGE,
 } from "@/lib/safety/constants"
@@ -53,6 +67,69 @@ type ChatRole = "user" | "assistant"
 type ChatMessage = { role: ChatRole; content: string }
 
 type ChatMode = "companion" | "guest"
+
+type SavedTurnPersistence = {
+  complete(finalContent: string): Promise<boolean>
+  fail(status: "stopped" | "failed", errorCode: string): Promise<void>
+}
+
+type ParsedChatRequest = {
+  mode: ChatMode
+  guestId: string
+  messages: ChatMessage[]
+  savedTurn?: SavedTurnPersistence
+}
+
+function createPersistenceErrorStream(text: string): ReadableStream<Uint8Array> {
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(encodeSseData({ content: text }))
+      controller.enqueue(
+        encodeSseData({
+          type: "persistence_error",
+          code: "FINAL_WRITE_FAILED",
+          retryable: true,
+        }),
+      )
+      controller.enqueue(encodeSseDone())
+      controller.close()
+    },
+  })
+}
+
+async function existingTurnResponse(
+  existing: EncryptedTurnRecord,
+  keyring: ReturnType<typeof conversationKeyringFromEnv>,
+): Promise<Response> {
+  if (
+    existing.status === "completed" &&
+    existing.assistantCiphertext &&
+    existing.assistantIv
+  ) {
+    const assistantContent = await decryptConversationContent(
+      {
+        ciphertext: existing.assistantCiphertext,
+        iv: existing.assistantIv,
+      },
+      {
+        conversationId: existing.conversationId,
+        turnId: existing.id,
+        role: "assistant",
+        keyVersion: existing.encryptionKeyVersion,
+        keyring,
+      },
+    )
+    return new Response(createTextSseStream(assistantContent), {
+      headers: sseResponseHeaders(),
+    })
+  }
+  return jsonErrorResponse("Turn already exists", 409, {
+    code:
+      existing.status === "pending"
+        ? "TURN_IN_PROGRESS"
+        : "TURN_ALREADY_FINISHED",
+  })
+}
 
 function parseMessages(value: Json): ChatMessage[] | null {
   if (!Array.isArray(value)) return null
@@ -86,7 +163,7 @@ function lastUserContent(messages: ChatMessage[]): string {
 
 function parseChatRequest(
   root: { readonly [k: string]: Json },
-): { mode: ChatMode; guestId: string; messages: ChatMessage[] } | null {
+): ParsedChatRequest | null {
   const messages = parseMessages(root.messages)
   if (!messages) return null
   const guestIdRaw = root.guestId
@@ -102,6 +179,139 @@ function parseChatRequest(
   }
   if (mode === "guest" && guestId.length === 0) return null
   return { mode, guestId, messages }
+}
+
+async function parseSavedChatRequest(
+  root: { readonly [k: string]: Json },
+): Promise<ParsedChatRequest | Response | null> {
+  const conversationId = root.conversationId
+  const clientMessageId = root.clientMessageId
+  const content = root.content
+  if (
+    typeof conversationId !== "string" ||
+    conversationId.length < 1 ||
+    conversationId.length > 100 ||
+    typeof clientMessageId !== "string" ||
+    clientMessageId.length < 1 ||
+    clientMessageId.length > 100 ||
+    typeof content !== "string"
+  ) {
+    return null
+  }
+  const cleanContent = content.trim()
+  if (!cleanContent || cleanContent.length > MAX_CHAT_MESSAGE_CHARS) return null
+
+  const userId = await authenticatedUserId()
+  if (!userId) {
+    return jsonErrorResponse("Sign in required", 401, { code: "AUTH_REQUIRED" })
+  }
+
+  const repository = new ConversationRepository(getDb())
+  const preferences = await repository.getPreferences(userId)
+  if (!preferences.historyEnabled) {
+    return jsonErrorResponse("Conversation history is disabled", 409, {
+      code: "HISTORY_DISABLED",
+    })
+  }
+  const conversation = await repository.getConversation(userId, conversationId)
+  if (!conversation || conversation.status !== "active") {
+    return jsonErrorResponse("Conversation not found", 404, {
+      code: "CONVERSATION_NOT_FOUND",
+    })
+  }
+
+  const keyring = conversationKeyringFromEnv()
+  const existing = await repository.findTurnByClientMessageId(
+    userId,
+    conversationId,
+    clientMessageId,
+  )
+  if (existing) {
+    return existingTurnResponse(existing, keyring)
+  }
+
+  const turnId = crypto.randomUUID()
+  const encryptedUser = await encryptConversationContent(cleanContent, {
+    conversationId,
+    turnId,
+    role: "user",
+    keyring,
+  })
+  let began = false
+  try {
+    began = await repository.beginTurn(userId, {
+      id: turnId,
+      conversationId,
+      clientMessageId,
+      userCiphertext: encryptedUser.ciphertext,
+      userIv: encryptedUser.iv,
+      encryptionKeyVersion: encryptedUser.keyVersion,
+    })
+  } catch (error) {
+    const racedTurn = await repository.findTurnByClientMessageId(
+      userId,
+      conversationId,
+      clientMessageId,
+    )
+    if (racedTurn) return existingTurnResponse(racedTurn, keyring)
+    throw error
+  }
+  if (!began) {
+    return jsonErrorResponse("Conversation cannot accept saved messages", 409, {
+      code: "HISTORY_DISABLED",
+    })
+  }
+
+  const turns = await decryptTurns(
+    await repository.listTurnsForContext(userId, conversationId),
+    keyring,
+  )
+  const messages = turnsToChatContext(turns)
+  if (messages.at(-1)?.role !== "user") {
+    await repository.markTurnIncomplete(userId, {
+      turnId,
+      conversationId,
+      status: "failed",
+      errorCode: "invalid_context",
+    })
+    return jsonErrorResponse("Saved conversation context is invalid", 409, {
+      code: "INVALID_CONTEXT",
+    })
+  }
+
+  return {
+    mode: conversation.mode,
+    guestId: conversation.guestId ?? "",
+    messages,
+    savedTurn: {
+      async complete(finalContent) {
+        const encryptedAssistant = await encryptConversationContent(
+          finalContent,
+          {
+            conversationId,
+            turnId,
+            role: "assistant",
+            keyring,
+            keyVersion: encryptedUser.keyVersion,
+          },
+        )
+        return repository.completeTurn(userId, {
+          turnId,
+          conversationId,
+          assistantCiphertext: encryptedAssistant.ciphertext,
+          assistantIv: encryptedAssistant.iv,
+        })
+      },
+      async fail(status, errorCode) {
+        await repository.markTurnIncomplete(userId, {
+          turnId,
+          conversationId,
+          status,
+          errorCode,
+        })
+      },
+    },
+  }
 }
 
 function userMessagesInjectionDetected(
@@ -127,6 +337,7 @@ async function streamKimiWithModeration(
     abort: AbortSignal
     started: number
     injectionDetected: boolean
+    savedTurn?: SavedTurnPersistence
   },
 ): Promise<void> {
   const {
@@ -140,6 +351,7 @@ async function streamKimiWithModeration(
     abort,
     started,
     injectionDetected,
+    savedTurn,
   } = options
 
   for (const id of selfHelpIds) {
@@ -196,10 +408,35 @@ async function streamKimiWithModeration(
     }
   }
 
+  if (!finalContent.trim()) {
+    finalContent = "（没有收到回复，请重试。）"
+  }
+
   if (finalContent !== rawAssistant) {
     controller.enqueue(
       encodeSseData({ type: "content_replace", content: finalContent }),
     )
+  }
+
+  if (savedTurn) {
+    let persisted = false
+    try {
+      persisted = await savedTurn.complete(finalContent)
+    } catch (error) {
+      logSafeError("chat/persistence", error, { phase: "complete" })
+    }
+    if (!persisted) {
+      await savedTurn.fail("failed", "final_write_failed").catch((error) => {
+        logSafeError("chat/persistence", error, { phase: "mark_failed" })
+      })
+      controller.enqueue(
+        encodeSseData({
+          type: "persistence_error",
+          code: "FINAL_WRITE_FAILED",
+          retryable: true,
+        }),
+      )
+    }
   }
 
   void recordUsageEvent({
@@ -240,7 +477,21 @@ export async function POST(req: NextRequest) {
     if (!isJsonRecord(j)) {
       return jsonErrorResponse("Invalid JSON body", 400)
     }
-    const parsed = parseChatRequest(j)
+    if (
+      j.persistence !== undefined &&
+      j.persistence !== "ephemeral" &&
+      j.persistence !== "saved"
+    ) {
+      return jsonErrorResponse("Invalid persistence mode", 400, {
+        code: "INVALID_PERSISTENCE_MODE",
+      })
+    }
+    const parsedOrResponse =
+      j.persistence === "saved"
+        ? await parseSavedChatRequest(j)
+        : parseChatRequest(j)
+    if (parsedOrResponse instanceof Response) return parsedOrResponse
+    const parsed = parsedOrResponse
     if (!parsed) {
       return jsonErrorResponse(
         "Invalid body: need messages[], and for guest mode guestId; or mode: companion",
@@ -248,20 +499,31 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const kimiResolved = resolveKimiClient(j)
-    if ("error" in kimiResolved) {
-      return jsonErrorResponse(kimiResolved.error, kimiResolved.status, {
-        ...(kimiResolved.code ? { code: kimiResolved.code } : {}),
-      })
-    }
-    const client = kimiResolved.client
-
-    const { mode, guestId, messages } = parsed
+    const { mode, guestId, messages, savedTurn } = parsed
     const lastUser = lastUserContent(messages)
     const routingContext = recentUserContext(messages)
     const injectionDetected = userMessagesInjectionDetected(messages)
 
     if (conversationHasCrisis(messages)) {
+      if (savedTurn) {
+        let persisted = false
+        try {
+          persisted = await savedTurn.complete(CRISIS_FIXED_RESPONSE)
+        } catch (error) {
+          logSafeError("chat/persistence", error, { phase: "crisis_complete" })
+        }
+        if (!persisted) {
+          await savedTurn.fail("failed", "final_write_failed").catch((error) => {
+            logSafeError("chat/persistence", error, {
+              phase: "crisis_mark_failed",
+            })
+          })
+          return new Response(
+            createPersistenceErrorStream(CRISIS_FIXED_RESPONSE),
+            { headers: sseResponseHeaders() },
+          )
+        }
+      }
       void recordUsageEvent({
         type: "chat_request",
         mode,
@@ -278,6 +540,17 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    const kimiResolved = resolveKimiClient(j)
+    if ("error" in kimiResolved) {
+      if (savedTurn) {
+        await savedTurn.fail("failed", kimiResolved.code ?? "kimi_unavailable")
+      }
+      return jsonErrorResponse(kimiResolved.error, kimiResolved.status, {
+        ...(kimiResolved.code ? { code: kimiResolved.code } : {}),
+      })
+    }
+    const client = kimiResolved.client
+
     let systemPrompt: string
     if (mode === "companion") {
       const matched = matchCases(routingContext, 2)
@@ -291,6 +564,8 @@ export async function POST(req: NextRequest) {
     const llmMessages = sanitizeMessagesForLlm(context.messages)
     const timeoutMs = kimiTimeoutMs()
     const abort = new AbortController()
+    const abortFromRequest = () => abort.abort()
+    req.signal.addEventListener("abort", abortFromRequest, { once: true })
     const timer = setTimeout(() => abort.abort(), timeoutMs)
     const intents = detectIntent(routingContext)
     const selfHelpIds = selfHelpIdsForIntents(intents)
@@ -309,6 +584,7 @@ export async function POST(req: NextRequest) {
             abort: abort.signal,
             started,
             injectionDetected,
+            savedTurn,
           })
         } catch (e) {
           logSafeError("chat/kimi", e, { mode, timeout: abort.signal.aborted })
@@ -326,12 +602,20 @@ export async function POST(req: NextRequest) {
             durationMs: Date.now() - started,
           })
           const msg = timeout ? UPSTREAM_TIMEOUT_MESSAGE : UPSTREAM_ERROR_MESSAGE
+          if (savedTurn) {
+            await savedTurn
+              .fail(req.signal.aborted ? "stopped" : "failed", kind)
+              .catch((error) => {
+                logSafeError("chat/persistence", error, { phase: "mark_incomplete" })
+              })
+          }
           controller.enqueue(
             encodeSseData({ type: "content_replace", content: msg }),
           )
           controller.enqueue(encodeSseDone())
         } finally {
           clearTimeout(timer)
+          req.signal.removeEventListener("abort", abortFromRequest)
           controller.close()
         }
       },

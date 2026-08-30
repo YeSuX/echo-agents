@@ -6,6 +6,7 @@ import { isJsonRecord, parseJson, type Json } from "@/lib/json-parse"
 import { matchCases } from "@/lib/match-cases"
 import { getSelfHelpEntryById } from "@/data/self-help-catalog"
 import { detectIntent, selfHelpIdsForIntents } from "@/lib/intent-detect"
+import { formatSopBlock, retrieveSop } from "@/lib/retrieve-sop"
 import { conversationHasCrisis } from "@/lib/safety/crisis"
 import { checkGuestResponse } from "@/lib/safety/guest-boundary"
 import {
@@ -281,7 +282,8 @@ export async function POST(req: NextRequest) {
     let systemPrompt: string
     if (mode === "companion") {
       const matched = matchCases(routingContext, 2)
-      systemPrompt = getCompanionSystemPrompt(matched)
+      const sop = retrieveSop(routingContext)
+      systemPrompt = getCompanionSystemPrompt(matched, formatSopBlock(sop))
     } else {
       systemPrompt = getGuestSystemPrompt(guestId)
     }

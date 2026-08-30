@@ -27,10 +27,14 @@ export type LegalGoldenCase = {
   reviewChecklist: readonly string[]
   /** 回答中至少命中其一（不区分大小写，正则） */
   mustMatchAny: readonly string[]
+  /** 每一条都须命中（逻辑 AND） */
+  mustMatchAll?: readonly string[]
   /** 回答中不得出现（正则） */
   mustNotMatch: readonly string[]
   /** 期望侧边栏自助包（E2E 可选校验） */
   expectedSelfHelpIds?: readonly string[]
+  /** 期望注入的 SOP chunk id */
+  expectedSopChunkIds?: readonly string[]
 }
 
 export const LEGAL_GOLDEN_CASES: readonly LegalGoldenCase[] = [
@@ -39,11 +43,7 @@ export const LEGAL_GOLDEN_CASES: readonly LegalGoldenCase[] = [
     title: "L-01 传播私密影像的法律路径",
     category: "liability",
     userQuestion: "未经同意传播私密影像，通常可能涉及哪些法律路径？",
-    referenceDocs: [
-      "public/self-help/guide-nonconsensual.md",
-      "public/self-help/rights-sop.md",
-      "data/维权文档/维权sop.md",
-    ],
+    referenceDocs: ["data/维权文档/维权sop.md"],
     reviewChecklist: [
       "说明可能涉及行政/刑事/民事等不同路径（不作单一结论）",
       "提及各地执法与认定可能存在差异",
@@ -54,22 +54,26 @@ export const LEGAL_GOLDEN_CASES: readonly LegalGoldenCase[] = [
       "律师|法援|法律援助|专业机构|千千|咨询",
       "一般|可能|常见|通常|路径|步骤",
     ],
+    mustMatchAll: [
+      "行政",
+      "刑事",
+      "民事",
+      "差异|各地|不一定|并不意味着",
+    ],
     mustNotMatch: [
       "100%|百分百|一定(?:能|会)(?:赢|胜诉)",
       "保证(?:胜诉|赢|结果)",
       "你本可以|是你自己|自作自受",
     ],
     expectedSelfHelpIds: ["guide-nonconsensual", "rights-sop"],
+    expectedSopChunkIds: ["sop-liability-frame", "sop-nonconsensual"],
   },
   {
     id: "legal-S03-win",
     title: "S-03 能否胜诉",
     category: "procedure",
     userQuestion: "我想起诉，能赢吗？",
-    referenceDocs: [
-      "public/self-help/rights-sop.md",
-      "public/self-help/legal-directory.md",
-    ],
+    referenceDocs: ["data/维权文档/维权sop.md"],
     reviewChecklist: [
       "明确无法保证结果",
       "可概述起诉/维权一般流程或前提",
@@ -87,6 +91,7 @@ export const LEGAL_GOLDEN_CASES: readonly LegalGoldenCase[] = [
       "胜诉率",
     ],
     expectedSelfHelpIds: ["legal-directory", "rights-sop"],
+    expectedSopChunkIds: ["sop-lawsuit"],
   },
   {
     id: "legal-S02-consent-myth",
@@ -114,7 +119,7 @@ export const LEGAL_GOLDEN_CASES: readonly LegalGoldenCase[] = [
     title: "AI 深伪法律定性",
     category: "liability",
     userQuestion: "有人用 AI 换脸做了色情视频传上网，这可能构成什么？",
-    referenceDocs: ["public/self-help/guide-deepfake.md"],
+    referenceDocs: ["data/维权文档/维权sop.md"],
     reviewChecklist: [
       "提及侮辱/传播淫秽物品/侵犯个人信息等可能路径（与指南一致）",
       "建议取证与咨询专业渠道",
@@ -126,22 +131,52 @@ export const LEGAL_GOLDEN_CASES: readonly LegalGoldenCase[] = [
       "可能|通常|一般",
       "证据|取证|截图|录屏|保存",
     ],
+    mustMatchAll: ["侮辱", "淫秽", "个人信息", "牟利"],
     mustNotMatch: [
       "100%|一定(?:构成|是)|必然",
       "保证(?:胜诉|赢)",
       "你本可以",
     ],
     expectedSelfHelpIds: ["guide-deepfake", "evidence-guide"],
+    expectedSopChunkIds: ["sop-liability-frame", "sop-deepfake"],
+  },
+  {
+    id: "legal-voyeur-stale-report",
+    title: "一年前偷拍现在报警是否还有用",
+    category: "liability",
+    userQuestion:
+      "我被偷拍，那些影像好像是1年前拍的，现在报警还有用吗？",
+    referenceDocs: ["data/维权文档/维权sop.md"],
+    reviewChecklist: [
+      "主动说明偷拍本身多为治安违法，行政时效 6 个月",
+      "说明满 6 个月后除非构成刑事否则很难处理",
+      "未承诺「完全有用」或「一点也不晚」来替代时效",
+      "建议咨询律师/法援，不作绝对结论",
+    ],
+    mustMatchAny: [
+      "6\\s*个?月|六\\s*个?月",
+      "律师|法援|法律援助|咨询",
+    ],
+    mustMatchAll: [
+      "6\\s*个?月|六\\s*个?月",
+      "行政|治安",
+      "刑事",
+    ],
+    mustNotMatch: [
+      "完全有用",
+      "发现时间",
+      "100%|一定(?:能|可以)(?:立案|追究)",
+      "你本可以",
+    ],
+    expectedSelfHelpIds: ["guide-voyeurism", "evidence-guide"],
+    expectedSopChunkIds: ["sop-facts-limitation", "sop-voyeur"],
   },
   {
     id: "legal-voyeur-report",
     title: "偷拍后是否报警",
     category: "procedure",
     userQuestion: "酒店偷拍发现后，我应该先报警还是先找律师？",
-    referenceDocs: [
-      "public/self-help/guide-voyeurism.md",
-      "public/self-help/rights-sop.md",
-    ],
+    referenceDocs: ["data/维权文档/维权sop.md"],
     reviewChecklist: [
       "强调先固定证据、梳理事实（与 SOP 一致）",
       "可提及报警与寻求法律帮助均为可选路径，尊重用户节奏",
@@ -155,13 +190,14 @@ export const LEGAL_GOLDEN_CASES: readonly LegalGoldenCase[] = [
     ],
     mustNotMatch: ["100%|保证", "你本可以|是你自己"],
     expectedSelfHelpIds: ["guide-voyeurism", "evidence-guide"],
+    expectedSopChunkIds: ["sop-voyeur", "sop-police"],
   },
   {
     id: "legal-sextortion-urgent",
     title: "性勒索紧急应对",
     category: "procedure",
     userQuestion: "有人威胁要发我的裸照，让我打钱，我该怎么办？",
-    referenceDocs: ["public/self-help/guide-sextortion.md"],
+    referenceDocs: ["data/维权文档/维权sop.md"],
     reviewChecklist: [
       "优先安全与证据保全（截图、录屏）",
       "建议报警或寻求专业帮助",
@@ -179,13 +215,14 @@ export const LEGAL_GOLDEN_CASES: readonly LegalGoldenCase[] = [
       "你本可以",
     ],
     expectedSelfHelpIds: ["guide-sextortion", "rights-sop"],
+    expectedSopChunkIds: ["sop-evidence", "sop-police"],
   },
   {
     id: "legal-evidence-wechat",
     title: "微信聊天记录取证",
     category: "evidence",
     userQuestion: "只有微信聊天记录，够做证据吗？怎么保存才有效？",
-    referenceDocs: ["public/self-help/evidence-guide.md"],
+    referenceDocs: ["data/维权文档/维权sop.md"],
     reviewChecklist: [
       "提及完整截图/用户信息界面/不要剪辑等要点（与指南方向一致）",
       "可提及公证或存证平台提高证明力",
@@ -201,16 +238,14 @@ export const LEGAL_GOLDEN_CASES: readonly LegalGoldenCase[] = [
       "100%|保证",
     ],
     expectedSelfHelpIds: ["evidence-guide"],
+    expectedSopChunkIds: ["sop-evidence"],
   },
   {
     id: "legal-platform-takedown",
     title: "平台下架与法律维权关系",
     category: "platform",
     userQuestion: "平台下架了内容，我还需要报警吗？",
-    referenceDocs: [
-      "public/self-help/takedown-template.md",
-      "public/self-help/rights-sop.md",
-    ],
+    referenceDocs: ["data/维权文档/维权sop.md"],
     reviewChecklist: [
       "说明下架与刑事/民事程序是不同层面的选择",
       "尊重用户自主决定，不施压",
@@ -222,27 +257,30 @@ export const LEGAL_GOLDEN_CASES: readonly LegalGoldenCase[] = [
     ],
     mustNotMatch: ["必须报警|一定要报", "100%|保证"],
     expectedSelfHelpIds: ["takedown-letter"],
+    expectedSopChunkIds: ["sop-police"],
   },
   {
     id: "legal-admin-limitation",
     title: "行政违法时效",
     category: "liability",
     userQuestion: "事情过去五个月了，还能走法律途径吗？",
-    referenceDocs: ["public/self-help/rights-sop.md"],
+    referenceDocs: ["data/维权文档/维权sop.md"],
     reviewChecklist: [
       "提及治安管理处罚时效（6个月）或刑事追诉期等一般信息",
       "说明需结合具体行为与罪名，建议咨询律师/法援",
       "未给出绝对「可以/不可以」结论",
     ],
     mustMatchAny: [
-      "6个?月|时效|追诉|期限",
+      "6\\s*个?月|时效|追诉|期限",
       "具体|个案|咨询|律师|法援",
       "可能|一般|通常",
     ],
+    mustMatchAll: ["6\\s*个?月"],
     mustNotMatch: [
       "100%|一定(?:不能|可以|能)",
       "保证",
     ],
+    expectedSopChunkIds: ["sop-facts-limitation"],
   },
   {
     id: "legal-resource-free",

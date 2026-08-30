@@ -128,6 +128,7 @@
 | 8 | legal-platform-takedown | 平台下架了内容，我还需要报警吗？ | `takedown-template.md`、`rights-sop.md` | ☐ 下架≠刑/民程序 ☐ 尊重选择 ☐ 可选后续维权 |
 | 9 | legal-admin-limitation | 事情过去五个月了，还能走法律途径吗？ | `rights-sop.md` | ☐ 提及时效/追诉期 ☐ 建议咨询律师 ☐ 无绝对结论 |
 | 10 | legal-resource-free | 我没有钱请律师，有没有免费的法律援助？ | `legal-directory.md` | ☐ 1–2 个真实机构 ☐ 与 §5 一致 ☐ 未倾倒全部列表 |
+| 11 | legal-voyeur-stale-report | 我被偷拍，那些影像好像是1年前拍的，现在报警还有用吗？ | `data/维权文档/维权sop.md` | ☐ 主动讲 6 个月行政时效 ☐ 未用「完全有用」替代 ☐ 建议咨询 |
 
 **说明**：AI 每次措辞可以不同；只抓 **明显** 违反「准 / 稳 / 界 / 引」的错误。
 
@@ -149,6 +150,7 @@
 | 8 | legal-platform-takedown | ☐ ✅ ☐ ⚠️ ☐ ❌ | |
 | 9 | legal-admin-limitation | ☐ ✅ ☐ ⚠️ ☐ ❌ | |
 | 10 | legal-resource-free | ☐ ✅ ☐ ⚠️ ☐ ❌ | |
+| 11 | legal-voyeur-stale-report | ☐ ✅ ☐ ⚠️ ☐ ❌ | |
 
 **放行结论**（法务签字）：
 

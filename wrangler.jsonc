@@ -17,7 +17,7 @@
     {
       "binding": "DB",
       "database_name": "echo-agents-db",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "db15dc2d-b664-401d-a267-e1ecaf2fe314",
       "migrations_dir": "migrations"
     }
   ],

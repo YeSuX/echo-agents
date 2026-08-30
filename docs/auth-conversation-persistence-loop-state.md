@@ -1,6 +1,6 @@
 # Auth and Conversation Persistence Loop State
 
-> Status: production deployment active; Clerk user deletion webhook configured and verified; real-user acceptance pending
+> Status: local D1 BLOB sync fix verified and pending production deployment; real-user acceptance pending
 > Updated: 2026-08-30
 
 ## Current objective
@@ -36,7 +36,7 @@ Add localized Clerk authentication and encrypted Cloudflare D1 conversation hist
 ## Failed attempts and decisions
 
 - Clerk CLI project-link metadata still resolves the production alias as `null`, so `clerk doctor` and `--instance prod` report production as unconfigured even though the Platform API lists the production instance. Read-only checks succeed when targeting the full production instance ID; re-link the project only after reviewing this discrepancy.
-- A real signed-in local save attempt reached conversation creation but `/api/chat` returned `500` because `CONVERSATION_ENCRYPTION_KEY_V1` is intentionally not configured yet. Saved-chat acceptance remains pending until the deployment secret phase; ephemeral chat remains functional.
+- A real signed-in local save attempt first returned `500` because the local process did not have `CONVERSATION_ENCRYPTION_KEY_V1`. After restoring the existing 32-byte Keychain value to the ignored `.env.local`, saved requests still failed after inserting a pending turn: D1 returns BLOB query values as numeric arrays, while the repository incorrectly exposed them as `ArrayBuffer`. The repository now normalizes D1 BLOB arrays at its read boundary before decryption; production secrets were not changed.
 - Clerk v7 removed `SignedIn` and `SignedOut`. The first Next build failed during prerender; the UI now uses `Show` and the repeated build passed.
 - Next.js 16 `proxy.ts` is Node-only. OpenNext Cloudflare 1.17 does not support Node Middleware, so the first OpenNext build failed. The project temporarily uses deprecated `middleware.ts`, which remains Edge-based and builds successfully. Migrate back to `proxy.ts` only after OpenNext adds Node Middleware support.
 - The legal golden command loaded an existing Kimi key and attempted live tests without a running server. Live legal and E2E LLM tests now require explicit `LEGAL_GOLDEN_LIVE=1` and `E2E_LIVE_LLM=1` flags.
@@ -78,6 +78,7 @@ Add localized Clerk authentication and encrypted Cloudflare D1 conversation hist
 - `bunx wrangler d1 migrations apply echo-agents-db --local`: `0002_enable_sync_by_default.sql` applied successfully; a repeated migration list reported no pending migrations.
 - `bun run test:persistence`: 7 passed, 0 failed, including default initialization, explicit opt-out preservation, and legacy preference migration.
 - `E2E_LIVE_LLM=0 bun run test:safety:e2e` after the default-sync revision: 9 passed, 1 explicitly skipped, 0 failed.
+- Local sync recovery verification: `.env.local` loads a 32-byte `CONVERSATION_ENCRYPTION_KEY_V1`, local D1 reports no pending migrations and contains all three application tables, and the Miniflare repository test now encrypts content, reads the numeric-array D1 BLOB representation, normalizes it, and decrypts it successfully. `bun run test:persistence` passed 7/7 with 18 assertions, `E2E_LIVE_LLM=0 bun run test:safety:e2e` passed 9/9 with one live test skipped, and `bunx tsc --noEmit` passed.
 - `bun run build` and `bun run build:cloudflare` after adding `zhCN` and default sync: passed with process-local test values for the still-unprovisioned webhook and encryption secrets.
 - `clerk doctor`: core checks passed; the development instance is configured and the production instance remains pending.
 - Local route smoke test: `/`, `/sign-in`, and `/sign-up` returned `200`; signed-out `/conversations` returned `307` to `/sign-in?redirect_url=/conversations`.
@@ -93,14 +94,15 @@ Add localized Clerk authentication and encrypted Cloudflare D1 conversation hist
 
 ## Production blockers requiring Su Xiong
 
-1. Wait for aggregate Clerk SSL issuance to complete, then refresh the CLI project link.
-2. Run real browser registration, session refresh, saved chat, cross-device resume, and account deletion acceptance tests.
-3. During the real account deletion acceptance test, verify the production `user.deleted` delivery and confirm that all owner-scoped D1 rows are removed.
-4. Decide whether to add automatic retention; the current implementation keeps history until user deletion and makes no automatic-expiry promise.
+1. Review and deploy the D1 BLOB normalization fix before production saved-chat acceptance.
+2. Wait for aggregate Clerk SSL issuance to complete, then refresh the CLI project link.
+3. Run real browser registration, session refresh, saved chat, cross-device resume, and account deletion acceptance tests.
+4. During the real account deletion acceptance test, verify the production `user.deleted` delivery and confirm that all owner-scoped D1 rows are removed.
+5. Decide whether to add automatic retention; the current implementation keeps history until user deletion and makes no automatic-expiry promise.
 
 ## Next loop entry
 
-Begin with a fresh production browser registration. Save one conversation, verify it can be resumed in a second browser/device session, then delete the account only after explicit approval. Correlate the resulting Clerk delivery with owner-scoped D1 row removal.
+Review and deploy the D1 BLOB normalization fix, then begin with a fresh production browser registration. Save one conversation, verify it can be resumed in a second browser/device session, then delete the account only after explicit approval. Correlate the resulting Clerk delivery with owner-scoped D1 row removal.
 
 ## Stop conditions
 

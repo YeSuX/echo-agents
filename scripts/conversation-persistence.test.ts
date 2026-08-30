@@ -279,19 +279,44 @@ describe("conversation repository ownership", () => {
       )
       expect(conversation?.ownerId).toBe("user-a")
 
+      const keys = keyring()
+      const encryptedUser = await encryptConversationContent("private question", {
+        conversationId: "conversation-1",
+        turnId: "turn-1",
+        role: "user",
+        keyring: keys,
+      })
+
       const began = await repository.beginTurn(
         "user-a",
         {
           id: "turn-1",
           conversationId: "conversation-1",
           clientMessageId: "client-1",
-          userCiphertext: new Uint8Array([1]),
-          userIv: new Uint8Array(12),
-          encryptionKeyVersion: 1,
+          userCiphertext: encryptedUser.ciphertext,
+          userIv: encryptedUser.iv,
+          encryptionKeyVersion: encryptedUser.keyVersion,
         },
         3,
       )
       expect(began).toBe(true)
+
+      const [storedTurn] = await repository.listTurns("user-a", "conversation-1")
+      expect(
+        await decryptConversationContent(
+          {
+            ciphertext: storedTurn.userCiphertext,
+            iv: storedTurn.userIv,
+          },
+          {
+            conversationId: storedTurn.conversationId,
+            turnId: storedTurn.id,
+            role: "user",
+            keyVersion: storedTurn.encryptionKeyVersion,
+            keyring: keys,
+          },
+        ),
+      ).toBe("private question")
       expect(await repository.getConversation("user-b", "conversation-1")).toBeNull()
       expect(await repository.listTurns("user-b", "conversation-1")).toEqual([])
       expect(

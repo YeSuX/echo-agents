@@ -53,14 +53,16 @@ type ConversationRow = {
   last_message_at: number | null
 }
 
+type D1Blob = ArrayBuffer | Uint8Array | number[]
+
 type TurnRow = {
   id: string
   conversation_id: string
   client_message_id: string
-  user_ciphertext: ArrayBuffer
-  user_iv: ArrayBuffer
-  assistant_ciphertext: ArrayBuffer | null
-  assistant_iv: ArrayBuffer | null
+  user_ciphertext: D1Blob
+  user_iv: D1Blob
+  assistant_ciphertext: D1Blob | null
+  assistant_iv: D1Blob | null
   encryption_key_version: number
   status: TurnStatus
   error_code: string | null
@@ -81,15 +83,25 @@ function toConversation(row: ConversationRow): ConversationRecord {
   }
 }
 
+function d1BlobToArrayBuffer(value: D1Blob): ArrayBuffer {
+  if (value instanceof ArrayBuffer) return value
+  if (value instanceof Uint8Array) return exactArrayBuffer(value)
+  return Uint8Array.from(value).buffer as ArrayBuffer
+}
+
 function toTurn(row: TurnRow): EncryptedTurnRecord {
   return {
     id: row.id,
     conversationId: row.conversation_id,
     clientMessageId: row.client_message_id,
-    userCiphertext: row.user_ciphertext,
-    userIv: row.user_iv,
-    assistantCiphertext: row.assistant_ciphertext,
-    assistantIv: row.assistant_iv,
+    userCiphertext: d1BlobToArrayBuffer(row.user_ciphertext),
+    userIv: d1BlobToArrayBuffer(row.user_iv),
+    assistantCiphertext: row.assistant_ciphertext
+      ? d1BlobToArrayBuffer(row.assistant_ciphertext)
+      : null,
+    assistantIv: row.assistant_iv
+      ? d1BlobToArrayBuffer(row.assistant_iv)
+      : null,
     encryptionKeyVersion: row.encryption_key_version,
     status: row.status,
     errorCode: row.error_code,

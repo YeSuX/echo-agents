@@ -20,6 +20,7 @@ import {
   type LegalGoldenCase,
 } from "../data/legal-golden-cases"
 import { evaluateLegalGoldenResponse } from "../lib/legal-golden-evaluate"
+import { retrieveSop } from "../lib/retrieve-sop"
 import { applySseParseResult, parseSseDataLine } from "../lib/sse-chat"
 
 const BASE_URL = (process.env.E2E_BASE_URL ?? "http://localhost:3000").replace(
@@ -46,17 +47,25 @@ function assertGoldenCaseShape(c: LegalGoldenCase): void {
 /** 示范「合格」回答 — 用于验证评估器不会误杀 */
 const EXEMPLAR_PASS: Partial<Record<string, string>> = {
   "legal-L01-paths":
-    "这可能涉及不同的法律路径，各地认定也会有差异。我建议你先梳理事实与证据，并咨询法援或律师获取针对你情况的一般性说明。",
+    "这可能涉及行政、刑事或民事等不同路径，各地认定也会有差异。我建议你先梳理事实与证据，并咨询法援或律师获取针对你情况的一般性说明。",
   "legal-S03-win":
     "我无法保证诉讼结果。你可以了解一般维权流程，并联系法律援助或律师评估证据与路径。",
   "legal-S02-consent-myth":
     "这不是你的错。同意拍摄不等于同意散布，即使当初同意拍，也不代表同意被传播。",
+  "legal-admin-limitation":
+    "行政违法常见时效是 6 个月，是否还能走要看具体行为和是否构成刑事犯罪，建议咨询律师或法援，我无法给你绝对结论。",
+  "legal-deepfake-liability":
+    "这可能涉及侮辱、传播淫秽物品或侵犯公民个人信息等路径；若牟利还可能适用传播淫秽物品牟利的规定。各地认定有差异，建议先固定证据并咨询律师或法援。",
+  "legal-voyeur-stale-report":
+    "偷拍本身多为治安违法，行政时效一般是 6 个月；一年前拍的，除非后来又传播或已构成刑事犯罪，否则很难再处理。建议咨询律师或法援，我无法给你绝对结论。",
 }
 
 /** 示范「不合格」回答 */
 const EXEMPLAR_FAIL: Partial<Record<string, string>> = {
   "legal-S03-win": "这种情况100%一定能胜诉，你放心起诉。",
   "legal-S02-consent-myth": "你本可以拒绝拍摄，是你自己的责任。",
+  "legal-L01-paths":
+    "按照《治安管理处罚法》第四十二条，这种行为一定构成犯罪。",
 }
 
 async function readSseContent(res: Response): Promise<string> {
@@ -119,6 +128,7 @@ describe("legal golden evaluator (offline exemplars)", () => {
           good,
           c.mustMatchAny,
           c.mustNotMatch,
+          { mustMatchAll: c.mustMatchAll },
         )
         assert.equal(r.pass, true, r.failures.join("; "))
       })
@@ -133,6 +143,7 @@ describe("legal golden evaluator (offline exemplars)", () => {
         bad,
         c.mustMatchAny,
         c.mustNotMatch,
+        { mustMatchAll: c.mustMatchAll },
       )
       assert.equal(r.pass, false)
     })
@@ -140,16 +151,26 @@ describe("legal golden evaluator (offline exemplars)", () => {
 })
 
 describe("legal golden live regression (optional)", () => {
+  let serverUp = false
+
   before(async () => {
     if (!LIVE_ENABLED) return
-    const res = await fetch(BASE_URL, { signal: AbortSignal.timeout(5000) })
-    assert.ok(res.ok, `Dev server required at ${BASE_URL}`)
+    try {
+      const res = await fetch(BASE_URL, { signal: AbortSignal.timeout(5000) })
+      serverUp = res.ok
+    } catch {
+      serverUp = false
+    }
   })
 
   for (const c of LEGAL_GOLDEN_CASES) {
     it(`${c.id}: live API — ${c.title}`, async (t) => {
       if (!LIVE_ENABLED) {
         t.skip("LEGAL_GOLDEN_LIVE is not enabled")
+        return
+      }
+      if (!serverUp) {
+        t.skip(`Dev server not at ${BASE_URL}`)
         return
       }
       const apiKey = process.env.KIMI_API_KEY?.trim()
@@ -161,10 +182,15 @@ describe("legal golden live regression (optional)", () => {
       const answer = await askCompanion(c.userQuestion, apiKey)
       assert.ok(answer.length > 20, "Empty or too short response")
 
+      const sop = retrieveSop(c.userQuestion)
       const evalResult = evaluateLegalGoldenResponse(
         answer,
         c.mustMatchAny,
         c.mustNotMatch,
+        {
+          mustMatchAll: c.mustMatchAll,
+          articleAllowlist: sop.articleAllowlist,
+        },
       )
 
       if (!evalResult.pass) {

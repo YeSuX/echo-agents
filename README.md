@@ -61,7 +61,8 @@ bun run cf-typegen
 Set the existing production instance's `pk_live_` key in the CI build environment
 or the ignored `.env.production.local`; keep `CLERK_SECRET_KEY` in Worker secrets.
 Runtime Worker secrets alone cannot populate the browser bundle. Builds now fail
-early when the publishable key is empty or missing.
+early when the publishable key is empty, missing, or a development key. If a
+Clerk secret is supplied at build time, it must also be a production key.
 
 Start Bun in production mode so it loads `.env.production.local` before
 `.env.local`. Otherwise Bun can pass development keys to Next.js through the
@@ -69,6 +70,8 @@ process environment, which takes precedence over Next.js environment files.
 
 ```bash
 NODE_ENV=production bun run build:cloudflare
+NODE_ENV=production bunx opennextjs-cloudflare preview
+# Stop the preview after checking the local routes, then validate the upload.
 bunx wrangler deploy --dry-run
 # Deploy the already verified artifact after any required production approval.
 NODE_ENV=production bunx opennextjs-cloudflare deploy
@@ -78,6 +81,18 @@ For remote builds, configure the same production publishable key in the build
 system as well. Do not generate a new Clerk instance to repair a missing build
 variable. After deployment, verify `/`, `/sign-in`, and `/api/config` return 200,
 and anonymous `/api/conversations` returns 401.
+
+```bash
+python3 scripts/check-cloudflare-auth.py https://echo-agents.cooper-ai.org
+```
+
+Use the OpenNext preview/deploy commands so the prerendered cache is populated
+into Workers Static Assets. A bare `wrangler dev` after a fresh build omits that
+step. The homepage and authentication entry pages should report a cache hit
+(`x-nextjs-cache` or `x-opennext-cache`) for HTML and RSC requests. Authenticated
+APIs and conversation history remain dynamic and must never use a shared page
+cache. Do not add ISR or on-demand revalidation without replacing the read-only
+static-assets cache.
 
 ## 主要路由
 

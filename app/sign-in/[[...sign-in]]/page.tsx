@@ -1,5 +1,9 @@
 import { SignIn } from "@clerk/nextjs"
 
+export function generateStaticParams() {
+  return [{ "sign-in": [] }]
+}
+
 export default function SignInPage() {
   return (
     <main className="flex min-h-dvh items-center justify-center bg-muted/20 px-4 py-12">

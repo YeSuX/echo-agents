@@ -1,6 +1,6 @@
 # Worker Resource Limit Incident After Google Sign-In
 
-> Status: Google sign-in disabled as explicitly authorized fallback; Worker resource root cause unresolved
+> Status: Google remains disabled; later login recovery identified CPU termination at 10 ms
 > Updated: 2026-09-13
 
 ## Objective and boundaries
@@ -38,6 +38,8 @@ A reliable application fix could not be established from the available evidence.
 - No complete authenticated Google flow or alternate login flow was tested during this incident.
 
 ## Next entry and stop condition
+
+Read `production-auth-loop-state.md` first. A later controlled browser run captured `exceededCpu` at 10 ms on `/sign-in`, and a concurrent external deployment introduced a separate Clerk development/production key mismatch. The cache and instance repair was deployed and Su Xiong confirmed fresh login/history access. The nominal resource cap remains and new-account registration has not been fully tested.
 
 The requested fallback is complete: the public Clerk environment disables Google and a new Google sign-in attempt is rejected. Keep Google disabled until a future authenticated resource-usage investigation verifies the homepage under the actual Worker limits.
 

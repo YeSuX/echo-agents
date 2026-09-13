@@ -20,5 +20,23 @@ export default function config(phase: string): NextConfig {
     );
   }
 
+  if (phase === PHASE_PRODUCTION_BUILD) {
+    if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.startsWith("pk_live_")) {
+      throw new Error(
+        "Production builds require a Clerk production publishable key (pk_live_). " +
+          "Use NODE_ENV=production to load .env.production.local with Bun.",
+      );
+    }
+    if (
+      process.env.CLERK_SECRET_KEY &&
+      !process.env.CLERK_SECRET_KEY.startsWith("sk_live_")
+    ) {
+      throw new Error(
+        "Production builds cannot use a Clerk development secret key. " +
+          "Use the secret key from the same production instance as the publishable key.",
+      );
+    }
+  }
+
   return nextConfig;
 }

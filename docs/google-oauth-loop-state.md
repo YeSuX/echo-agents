@@ -1,6 +1,6 @@
 # Production Google OAuth Incident
 
-> Status: production credentials configured; Google authorization entry verified; real sign-in acceptance pending
+> Status: Google sign-in disabled after post-login Worker Error 1102; credentials retained
 > Updated: 2026-09-13
 
 ## Objective and boundaries
@@ -41,9 +41,9 @@ Production authentication configuration and credentials require Su Xiong's appro
 
 ## Next entry
 
-The user manually created the Google OAuth Web client in project `suxiong-claw` and explicitly authorized writing the supplied credentials to Clerk production. That update is complete. Do not request the same authorization or credentials again.
+Read `worker-resource-limits-loop-state.md` first. After credentials were configured successfully, Su Xiong reported Worker Error 1102 on return to the application homepage and explicitly authorized disabling Google if a reliable fix could not be established. Google is now disabled and that fallback is verified. Do not re-enable it merely to repeat the earlier OAuth setup.
 
-Run a real Google sign-in from the application in a supported browser and verify return to the application with an authenticated session. Google audience/publishing status and authorization-code exchange were not tested by the credential-free HTTP checks. Browser automation remains unavailable; real-user acceptance is still required.
+The existing Google OAuth Web client and credentials remain configured. A future investigation should focus on authenticated homepage resource usage and actual Cloudflare limits before proposing re-enablement.
 
 ## References
 

@@ -2,7 +2,7 @@
  * 安全护栏自动化回归测试
  *
  * 运行：bun run test:safety
- * 覆盖 lib/safety/* 与相关集成逻辑（不调用真实 Kimi API）。
+ * 覆盖 lib/safety/* 与相关集成逻辑（不调用真实 DeepSeek API）。
  */
 
 import assert from "node:assert/strict"
@@ -28,10 +28,10 @@ import {
 import { desensitizeText } from "../lib/safety/desensitize"
 import { checkGuestResponse } from "../lib/safety/guest-boundary"
 import {
-  isClientKimiKeyAllowed,
-  kimiChatOptions,
-  resolveKimiClient,
-} from "../lib/safety/kimi-server"
+  isClientDeepSeekKeyAllowed,
+  deepseekChatOptions,
+  resolveDeepSeekClient,
+} from "../lib/safety/deepseek-server"
 import { logSafeError, sanitizeErrorMessage } from "../lib/safety/safe-log"
 import { moderateAssistantOutput } from "../lib/safety/output-moderation"
 import {
@@ -273,10 +273,10 @@ describe("rate limit", () => {
 describe("API key policy", () => {
   it("forbids client key in production by default", () => {
     withEnv(
-      { NODE_ENV: "production", ALLOW_CLIENT_KIMI_KEY: undefined },
+      { NODE_ENV: "production", ALLOW_CLIENT_DEEPSEEK_KEY: undefined },
       () => {
-        assert.equal(isClientKimiKeyAllowed(), false)
-        const result = resolveKimiClient({ kimiApiKey: "sk-test" })
+        assert.equal(isClientDeepSeekKeyAllowed(), false)
+        const result = resolveDeepSeekClient({ deepseekApiKey: "sk-test" })
         assert.ok("error" in result)
         if ("error" in result) {
           assert.equal(result.status, 403)
@@ -287,33 +287,38 @@ describe("API key policy", () => {
   })
 
   it("allows client key in development", () => {
-    withEnv({ NODE_ENV: "development", ALLOW_CLIENT_KIMI_KEY: undefined }, () => {
-      assert.equal(isClientKimiKeyAllowed(), true)
+    withEnv({ NODE_ENV: "development", ALLOW_CLIENT_DEEPSEEK_KEY: undefined }, () => {
+      assert.equal(isClientDeepSeekKeyAllowed(), true)
     })
   })
 
-  it("respects ALLOW_CLIENT_KIMI_KEY=1 override", () => {
-    withEnv({ NODE_ENV: "production", ALLOW_CLIENT_KIMI_KEY: "1" }, () => {
-      assert.equal(isClientKimiKeyAllowed(), true)
+  it("respects ALLOW_CLIENT_DEEPSEEK_KEY=1 override", () => {
+    withEnv({ NODE_ENV: "production", ALLOW_CLIENT_DEEPSEEK_KEY: "1" }, () => {
+      assert.equal(isClientDeepSeekKeyAllowed(), true)
     })
   })
 })
 
-describe("Kimi model availability and diagnostics", () => {
-  it("defaults to the available conversational model without reasoning latency", () => {
+describe("DeepSeek model availability and diagnostics", () => {
+  it("defaults to DeepSeek V4.1 Flash with thinking enabled", () => {
     for (const value of [undefined, "", "  "]) {
-      withEnv({ KIMI_MODEL: value }, () => {
-        assert.deepEqual(kimiChatOptions(), {
-          model: "kimi-k2.6",
-          thinking: { type: "disabled" },
+      withEnv({ DEEPSEEK_MODEL: value }, () => {
+        assert.deepEqual(deepseekChatOptions(), {
+          model: "deepseek-flash",
+          thinking: { type: "enabled" },
+          reasoning_effort: "high",
         })
       })
     }
   })
 
-  it("accepts a server override without imposing model-specific parameters", () => {
-    withEnv({ KIMI_MODEL: "  custom-model  " }, () => {
-      assert.deepEqual(kimiChatOptions(), { model: "custom-model" })
+  it("accepts a server model override while preserving thinking", () => {
+    withEnv({ DEEPSEEK_MODEL: "  custom-model  " }, () => {
+      assert.deepEqual(deepseekChatOptions(), {
+        model: "custom-model",
+        thinking: { type: "enabled" },
+        reasoning_effort: "high",
+      })
     })
   })
 
@@ -340,7 +345,7 @@ describe("Kimi model availability and diagnostics", () => {
     const logs: string[] = []
     try {
       console.error = (line: string) => logs.push(line)
-      withEnv({ NODE_ENV: "production" }, () => logSafeError("chat/kimi", error))
+      withEnv({ NODE_ENV: "production" }, () => logSafeError("chat/deepseek", error))
     } finally {
       console.error = original
     }

@@ -8,9 +8,9 @@ import { AgentMarkdown } from "@/components/agent-markdown"
 import { AuthControls } from "@/components/auth-controls"
 import { ConversationSaveControl } from "@/components/conversation-save-control"
 import {
-  KimiConfigTrigger,
-  useKimiConfig,
-} from "@/components/kimi-config-provider"
+  DeepSeekConfigTrigger,
+  useDeepSeekConfig,
+} from "@/components/deepseek-config-provider"
 import { SupportResourcesDropdown } from "@/components/support-resources-dropdown"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,7 +22,8 @@ import {
 } from "@/lib/derive-self-help"
 import { parseFetchErrorBody } from "@/lib/json-parse"
 import { sseItemsToPanelItems } from "@/lib/sse-self-help"
-import { applySseParseResult, parseSseDataLine } from "@/lib/sse-chat"
+import { consumeChatStream } from "@/lib/sse-chat"
+import { AgentReasoning } from "@/components/agent-reasoning"
 import { cn } from "@/lib/utils"
 import {
   MAX_CHAT_INPUT_CHARS,
@@ -39,6 +40,7 @@ export type ConversationMessage = {
   role: MessageRole
   content: string
   isFallback?: boolean
+  reasoning?: string
 }
 
 type ConversationPageProps = {
@@ -69,7 +71,7 @@ export function ConversationPage({
   initialMessages = [],
   initialConversationId,
 }: ConversationPageProps) {
-  const { kimiRequestFields } = useKimiConfig()
+  const { deepseekRequestFields } = useDeepSeekConfig()
   const persistence = useConversationPersistence({
     mode: "guest",
     guestId,
@@ -91,13 +93,14 @@ export function ConversationPage({
   const [selfHelpItems, setSelfHelpItems] = useState<SelfHelpPanelItem[]>([])
   const [isSending, setIsSending] = useState(false)
   const [streamingContent, setStreamingContent] = useState("")
+  const [streamingReasoning, setStreamingReasoning] = useState("")
   const [error, setError] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages, streamingContent])
+  }, [messages, streamingContent, streamingReasoning])
 
   useEffect(() => {
     if (!initialConversationId || !isSignedIn) return
@@ -179,12 +182,14 @@ export function ConversationPage({
     )
     setSelfHelpItems((prev) => mergeSelfHelpDeduped(prev, derived))
     setIsSending(true)
+    setStreamingReasoning("")
     setStreamingContent("")
 
     abortRef.current = new AbortController()
     const signal = abortRef.current.signal
 
     let fullContent = ""
+    let fullReasoning = ""
 
     try {
       const savedBody = await persistence.savedRequest(text)
@@ -196,7 +201,7 @@ export function ConversationPage({
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...requestBody, ...kimiRequestFields }),
+        body: JSON.stringify({ ...requestBody, ...deepseekRequestFields }),
         signal,
       })
 
@@ -205,49 +210,21 @@ export function ConversationPage({
         throw new Error(parseFetchErrorBody(errText) ?? `请求失败 ${res.status}`)
       }
 
-      const reader = res.body?.getReader()
-      const decoder = new TextDecoder()
-      if (!reader) throw new Error("No response body")
-
-      let buffer = ""
-      let sawDone = false
-
-      outer: while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split("\n\n")
-        buffer = lines.pop() ?? ""
-        for (const line of lines) {
-          const parsed = parseSseDataLine(line)
-          if (parsed.kind === "done") {
-            sawDone = true
-            break outer
-          }
-          if (parsed.kind === "content" || parsed.kind === "content_replace") {
-            fullContent = applySseParseResult(parsed, fullContent)
-            setStreamingContent(fullContent)
-          }
-          if (parsed.kind === "self_help") {
-            const panel = sseItemsToPanelItems(parsed.items)
-            setSelfHelpItems((prev) => mergeSelfHelpDeduped(prev, panel))
-          }
-          if (parsed.kind === "persistence_error") {
-            setError("回复已生成，但未能写入云端记录。请先复制内容后重试。")
-          }
-        }
-      }
-
-      if (!sawDone) {
-        const tail = parseSseDataLine(buffer)
-        if (tail.kind === "content" || tail.kind === "content_replace") {
-        fullContent = applySseParseResult(tail, fullContent)
-      }
-        if (tail.kind === "self_help") {
-          const panel = sseItemsToPanelItems(tail.items)
+      await consumeChatStream(res, {
+        onUpdate: (state) => {
+          fullContent = state.content
+          fullReasoning = state.reasoning
+          setStreamingContent(state.content)
+          setStreamingReasoning(state.reasoning)
+        },
+        onSelfHelp: (items) => {
+          const panel = sseItemsToPanelItems(items)
           setSelfHelpItems((prev) => mergeSelfHelpDeduped(prev, panel))
-        }
-      }
+        },
+        onPersistenceError: () => {
+          setError("The reply could not be saved. Copy it before retrying.")
+        },
+      })
 
       setStreamingContent("")
       setMessages((prev) => [
@@ -255,6 +232,7 @@ export function ConversationPage({
         {
           id: `agent-${Date.now()}`,
           role: "agent",
+          reasoning: fullReasoning,
           content: fullContent || "（没有收到回复，请重试。）",
         },
       ])
@@ -266,6 +244,7 @@ export function ConversationPage({
           {
             id: `agent-${Date.now()}`,
             role: "agent",
+            reasoning: fullReasoning,
             content: fullContent.trim()
               ? `${fullContent.trim()}\n\n（已停止生成）`
               : "已停下。你可以换个问题继续，或者先离开一会儿。",
@@ -288,7 +267,7 @@ export function ConversationPage({
       setIsSending(false)
       abortRef.current = null
     }
-  }, [guestId, input, isSending, messages, kimiRequestFields, persistence])
+  }, [guestId, input, isSending, messages, deepseekRequestFields, persistence])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -328,7 +307,7 @@ export function ConversationPage({
             <span className="text-xs">插画</span>
           </div>
         </div>
-        <KimiConfigTrigger />
+        <DeepSeekConfigTrigger />
         <ConversationSaveControl
           isSignedIn={persistence.isSignedIn}
           historyEnabled={persistence.historyEnabled}
@@ -384,6 +363,7 @@ export function ConversationPage({
                   guestName={guestName}
                   content={msg.content}
                   isFallback={msg.isFallback}
+                  reasoning={msg.reasoning}
                 />
               ) : (
                 <UserBubble key={msg.id} content={msg.content} />
@@ -392,7 +372,8 @@ export function ConversationPage({
             {isSending && (
               <AgentBubble
                 guestName={guestName}
-                content={streamingContent || "..."}
+                content={streamingContent}
+                reasoning={streamingReasoning}
                 streaming
                 className={cn(streamingContent && "opacity-90")}
               />
@@ -460,12 +441,14 @@ export function ConversationPage({
 function AgentBubble({
   guestName,
   content,
+  reasoning,
   isFallback,
   streaming,
   className,
 }: {
   guestName: string
   content: string
+  reasoning?: string
   isFallback?: boolean
   streaming?: boolean
   className?: string
@@ -483,8 +466,9 @@ function AgentBubble({
         <p className="mb-0.5 font-medium text-muted-foreground">
           {guestName}
         </p>
+        <AgentReasoning content={reasoning} isThinking={streaming && !content} />
         {streaming ? (
-          <p className="whitespace-pre-wrap">{content}</p>
+          <p className="whitespace-pre-wrap">{content || (reasoning ? "" : "Preparing a reply…")}</p>
         ) : (
           <AgentMarkdown content={content} />
         )}

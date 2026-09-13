@@ -7,7 +7,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "secrets": {
     "required": [
-      "KIMI_API_KEY",
+      "DEEPSEEK_API_KEY",
       "CLERK_SECRET_KEY",
       "CLERK_WEBHOOK_SIGNING_SECRET",
       "CONVERSATION_ENCRYPTION_KEY_V1"

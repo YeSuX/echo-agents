@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:safety": "tsx scripts/safety-guardrails.test.ts",
+    "test:deepseek": "bun test scripts/deepseek-stream.test.ts",
     "test:safety:e2e": "tsx scripts/safety-guardrails.e2e.test.ts",
     "test:legal-golden": "tsx scripts/retrieve-sop.test.ts && tsx scripts/legal-golden-regression.test.ts",
     "test:retrieve-sop": "tsx scripts/retrieve-sop.test.ts",

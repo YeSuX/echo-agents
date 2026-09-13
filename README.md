@@ -1,6 +1,6 @@
 # 小荧（echo-agents）
 
-面向 **AI 影像性暴力** 相关困扰的 Web 应用：同伴式对话（Kimi）、自助资源包、科普与匿名案例示意。技术栈为 **Next.js**（App Router）+ **React** + **TypeScript** + **Tailwind**。
+面向 **AI 影像性暴力** 相关困扰的 Web 应用：同伴式对话（DeepSeek）、自助资源包、科普与匿名案例示意。技术栈为 **Next.js**（App Router）+ **React** + **TypeScript** + **Tailwind**。
 
 ## 文档约定
 
@@ -19,7 +19,7 @@ bun run build
 bun run lint
 bun run test:safety
 bun run test:safety:e2e   # 需另开终端 bun run dev
-bun run test:legal-golden # 法律问句 golden 回归；live 需 KIMI_API_KEY
+bun run test:legal-golden # 法律问句 golden 回归；live 需 DEEPSEEK_API_KEY
 ```
 
 ### 常用脚本
@@ -39,13 +39,16 @@ bun run test:legal-golden # 法律问句 golden 回归；live 需 KIMI_API_KEY
 
 复制 `.env.example` 为 `.env` 并填写：
 
-- `KIMI_API_KEY`：Moonshot Kimi API Key（对话接口需要；也可仅在浏览器弹窗中配置）
-- `KIMI_BASE_URL`：可选，默认 `https://api.moonshot.cn/v1`
-- `KIMI_MODEL`: optional server-side model override; defaults to `kimi-k2.6` with thinking disabled for conversational latency. The configured Moonshot account must have access to the selected model.
+- `DEEPSEEK_API_KEY`：DeepSeek API Key（对话接口需要；也可仅在浏览器弹窗中配置）
+- `DEEPSEEK_BASE_URL`：可选，默认 `https://api.deepseek.com`
+- `DEEPSEEK_MODEL`: optional server-side model override; defaults to `deepseek-flash` (DeepSeek-V4.1-Flash) with thinking enabled. The configured DeepSeek account must have access to the selected model.
+- `DEEPSEEK_TIMEOUT_MS`: total generation timeout, default `120000` ms.
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`：Clerk frontend publishable key
 - `CLERK_SECRET_KEY`：Clerk server secret
 - `CLERK_WEBHOOK_SIGNING_SECRET`：Clerk `user.deleted` webhook verification secret
 - `CONVERSATION_ENCRYPTION_KEY_V1`：32-byte Base64 key，用于对话正文 AES-GCM 加密
+
+Companion and guest chats display streamed thinking separately in a collapsible panel. Thinking stays in current-page memory; cloud history stores encrypted final replies using the existing format. Run `bun run test:deepseek` to verify stream framing, output boundaries, interruptions, cancellation, and timeout handling against a synthetic upstream.
 
 Cloudflare D1 使用 `DB` binding。仓库内的 `database_id` 是全零占位符；创建远端数据库并确认数据 location 后，必须替换为真实 ID。创建本地 schema：
 
@@ -54,7 +57,7 @@ bunx wrangler d1 migrations apply echo-agents-db --local
 bun run cf-typegen
 ```
 
-在 **同伴对话** 与 **嘉宾对话** 页顶栏点击 **齿轮按钮**，可打开 shadcn `Dialog`，将 `KIMI_API_KEY` / `KIMI_BASE_URL` 存入 **localStorage**；调用 `/api/chat` 时会随请求体带上，**优先于**服务端环境变量。点击「清除本地配置」后恢复为仅使用 `.env`。
+在 **同伴对话** 与 **嘉宾对话** 页顶栏点击 **齿轮按钮**，可打开 shadcn `Dialog`，将 `DEEPSEEK_API_KEY` / `DEEPSEEK_BASE_URL` 存入 **localStorage**；调用 `/api/chat` 时会随请求体带上，**优先于**服务端环境变量。点击「清除本地配置」后恢复为仅使用 `.env`。
 
 ## Production build and deployment
 

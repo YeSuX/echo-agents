@@ -22,10 +22,10 @@ import { formatSopBlock, retrieveSop } from "@/lib/retrieve-sop"
 import { conversationHasCrisis } from "@/lib/safety/crisis"
 import { checkGuestResponse } from "@/lib/safety/guest-boundary"
 import {
-  kimiChatOptions,
-  kimiTimeoutMs,
-  resolveKimiClient,
-} from "@/lib/safety/kimi-server"
+  deepseekChatOptions,
+  deepseekTimeoutMs,
+  resolveDeepSeekClient,
+} from "@/lib/safety/deepseek-server"
 import { moderateAssistantOutput } from "@/lib/safety/output-moderation"
 import {
   detectPromptInjection,
@@ -324,7 +324,7 @@ function userMessagesInjectionDetected(
   return false
 }
 
-async function streamKimiWithModeration(
+async function streamDeepSeekWithModeration(
   controller: ReadableStreamDefaultController<Uint8Array>,
   options: {
     client: OpenAI
@@ -370,7 +370,7 @@ async function streamKimiWithModeration(
 
   const stream = await client.chat.completions.create(
     {
-      ...kimiChatOptions(),
+      ...deepseekChatOptions(),
       stream: true,
       messages: [
         { role: "system", content: systemPrompt },
@@ -381,13 +381,36 @@ async function streamKimiWithModeration(
   )
 
   let rawAssistant = ""
+  let rawReasoning = ""
+  let reasoningBlocked = false
+  let finishReason: string | null = null
   for await (const chunk of stream) {
     if (abort.aborted) throw new Error("timeout")
-    const delta = chunk.choices[0]?.delta?.content
+    const upstreamDelta = chunk.choices[0]?.delta
+    if (chunk.choices[0]?.finish_reason) finishReason = chunk.choices[0].finish_reason
+    const reasoning = upstreamDelta && "reasoning_content" in upstreamDelta
+      ? upstreamDelta.reasoning_content
+      : undefined
+    if (typeof reasoning === "string" && reasoning && !reasoningBlocked) {
+      rawReasoning += reasoning
+      // Apply the existing output boundaries to the separate display channel too.
+      reasoningBlocked = mode === "guest"
+        ? checkGuestResponse(guestId, lastUser, rawReasoning).flagged
+        : moderateAssistantOutput(rawReasoning, mode).severity === "block"
+      controller.enqueue(encodeSseData({
+        type: reasoningBlocked ? "reasoning_replace" : "reasoning",
+        content: reasoningBlocked ? "" : reasoning,
+      }))
+    }
+    const delta = upstreamDelta?.content
     if (typeof delta === "string" && delta) {
       rawAssistant += delta
       controller.enqueue(encodeSseData({ content: delta }))
     }
+  }
+
+  if (finishReason !== "stop" || !rawAssistant.trim()) {
+    throw new Error("Incomplete upstream answer")
   }
 
   let finalContent = rawAssistant
@@ -413,6 +436,7 @@ async function streamKimiWithModeration(
   }
 
   if (finalContent !== rawAssistant) {
+    controller.enqueue(encodeSseData({ type: "reasoning_replace", content: "" }))
     controller.enqueue(
       encodeSseData({ type: "content_replace", content: finalContent }),
     )
@@ -540,16 +564,16 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const kimiResolved = resolveKimiClient(j)
-    if ("error" in kimiResolved) {
+    const deepseekResolved = resolveDeepSeekClient(j)
+    if ("error" in deepseekResolved) {
       if (savedTurn) {
-        await savedTurn.fail("failed", kimiResolved.code ?? "kimi_unavailable")
+        await savedTurn.fail("failed", deepseekResolved.code ?? "deepseek_unavailable")
       }
-      return jsonErrorResponse(kimiResolved.error, kimiResolved.status, {
-        ...(kimiResolved.code ? { code: kimiResolved.code } : {}),
+      return jsonErrorResponse(deepseekResolved.error, deepseekResolved.status, {
+        ...(deepseekResolved.code ? { code: deepseekResolved.code } : {}),
       })
     }
-    const client = kimiResolved.client
+    const client = deepseekResolved.client
 
     let systemPrompt: string
     if (mode === "companion") {
@@ -563,18 +587,24 @@ export async function POST(req: NextRequest) {
 
     const context = buildChatContext(messages)
     const llmMessages = sanitizeMessagesForLlm(context.messages)
-    const timeoutMs = kimiTimeoutMs()
+    const timeoutMs = deepseekTimeoutMs()
     const abort = new AbortController()
     const abortFromRequest = () => abort.abort()
     req.signal.addEventListener("abort", abortFromRequest, { once: true })
+    if (req.signal.aborted) abort.abort()
     const timer = setTimeout(() => abort.abort(), timeoutMs)
     const intents = detectIntent(routingContext)
     const selfHelpIds = selfHelpIdsForIntents(intents)
 
+    let streamCancelled = false
     const readable = new ReadableStream<Uint8Array>({
+      cancel() {
+        streamCancelled = true
+        abort.abort()
+      },
       async start(controller) {
         try {
-          await streamKimiWithModeration(controller, {
+          await streamDeepSeekWithModeration(controller, {
             client,
             systemPrompt,
             llmMessages,
@@ -588,7 +618,7 @@ export async function POST(req: NextRequest) {
             savedTurn,
           })
         } catch (e) {
-          logSafeError("chat/kimi", e, { mode, timeout: abort.signal.aborted })
+          logSafeError("chat/deepseek", e, { mode, timeout: abort.signal.aborted })
           const kind = sanitizeErrorMessage(e)
           const timeout = kind === "upstream_timeout" || abort.signal.aborted
           void recordUsageEvent({
@@ -605,11 +635,13 @@ export async function POST(req: NextRequest) {
           const msg = timeout ? UPSTREAM_TIMEOUT_MESSAGE : UPSTREAM_ERROR_MESSAGE
           if (savedTurn) {
             await savedTurn
-              .fail(req.signal.aborted ? "stopped" : "failed", kind)
+              .fail(req.signal.aborted || streamCancelled ? "stopped" : "failed", kind)
               .catch((error) => {
                 logSafeError("chat/persistence", error, { phase: "mark_incomplete" })
               })
           }
+          if (streamCancelled) return
+          controller.enqueue(encodeSseData({ type: "reasoning_replace", content: "" }))
           controller.enqueue(
             encodeSseData({ type: "content_replace", content: msg }),
           )
@@ -617,7 +649,7 @@ export async function POST(req: NextRequest) {
         } finally {
           clearTimeout(timer)
           req.signal.removeEventListener("abort", abortFromRequest)
-          controller.close()
+          if (!streamCancelled) controller.close()
         }
       },
     })

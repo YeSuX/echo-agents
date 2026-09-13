@@ -3,6 +3,8 @@
 > Status: deployed; real production streaming passed; authenticated persistence acceptance pending
 > Updated: 2026-09-13
 
+> Superseded provider configuration: the user requested DeepSeek on 2026-09-14. See `docs/deepseek-migration-loop-state.md` for the current model, thinking display, deployment, and validation.
+
 ## Objective and boundaries
 
 Restore real agent replies with cloud persistence enabled and disabled. Preserve the existing Clerk instance, disabled Google login, credentials, encryption, and conversation data. No paid-plan changes or Git history rewriting. Stop and escalate if the same deployment failure repeats twice or the repair requires changes outside these boundaries.

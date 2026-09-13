@@ -1,7 +1,7 @@
-import { isClientKimiKeyAllowed } from "@/lib/safety/kimi-server"
+import { isClientDeepSeekKeyAllowed } from "@/lib/safety/deepseek-server"
 
 export async function GET() {
   return Response.json({
-    allowClientKimiKey: isClientKimiKeyAllowed(),
+    allowClientDeepSeekKey: isClientDeepSeekKeyAllowed(),
   })
 }

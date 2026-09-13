@@ -6,7 +6,7 @@
  *
  * 可选环境变量：
  * - E2E_BASE_URL=http://localhost:3000
- * - E2E_LIVE_LLM=1 KIMI_API_KEY=...（显式开启真实 LLM 用例）
+ * - E2E_LIVE_LLM=1 DEEPSEEK_API_KEY=...（显式开启真实 LLM 用例）
  */
 
 import assert from "node:assert/strict"
@@ -98,7 +98,7 @@ async function postChat(body: Record<string, unknown>): Promise<Response> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      kimiApiKey: FAKE_DEV_KEY,
+      deepseekApiKey: FAKE_DEV_KEY,
       ...body,
     }),
   })
@@ -117,11 +117,11 @@ describe("safety guardrails E2E", () => {
     await ensureServerUp()
   })
 
-  it("GET /api/config returns allowClientKimiKey in development", async () => {
+  it("GET /api/config returns allowClientDeepSeekKey in development", async () => {
     const res = await fetch(`${BASE_URL}/api/config`)
     assert.ok(res.ok)
-    const data = (await res.json()) as { allowClientKimiKey?: boolean }
-    assert.equal(typeof data.allowClientKimiKey, "boolean")
+    const data = (await res.json()) as { allowClientDeepSeekKey?: boolean }
+    assert.equal(typeof data.allowClientDeepSeekKey, "boolean")
   })
 
   it("S-04 / C-01: crisis short-circuit returns fixed hotline (companion)", async () => {
@@ -224,14 +224,14 @@ describe("safety guardrails E2E (optional LLM)", () => {
     await ensureServerUp()
   })
 
-  it("S-03 / ST-02: live LLM — skips without KIMI_API_KEY", async (t) => {
+  it("S-03 / ST-02: live LLM — skips without DEEPSEEK_API_KEY", async (t) => {
     if (process.env.E2E_LIVE_LLM !== "1") {
       t.skip("E2E_LIVE_LLM is not enabled")
       return
     }
-    const apiKey = process.env.KIMI_API_KEY?.trim()
+    const apiKey = process.env.DEEPSEEK_API_KEY?.trim()
     if (!apiKey) {
-      t.skip("KIMI_API_KEY not set — skipping live LLM moderation test")
+      t.skip("DEEPSEEK_API_KEY not set — skipping live LLM moderation test")
       return
     }
 

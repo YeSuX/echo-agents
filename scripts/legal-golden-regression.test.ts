@@ -2,11 +2,11 @@
  * 法律 Golden Answer 回归测试
  *
  * 离线层：校验 golden 集定义 + 示范回答边界
- * 在线层（需 KIMI_API_KEY + 运行中 dev）：对 live API 跑高频法律问句
+ * 在线层（需 DEEPSEEK_API_KEY + 运行中 dev）：对 live API 跑高频法律问句
  *
  * 运行：
  *   bun run test:legal-golden
- *   LEGAL_GOLDEN_LIVE=1 KIMI_API_KEY=sk-... bun run test:legal-golden
+ *   LEGAL_GOLDEN_LIVE=1 DEEPSEEK_API_KEY=sk-... bun run test:legal-golden
  */
 
 import assert from "node:assert/strict"
@@ -100,7 +100,7 @@ async function askCompanion(question: string, apiKey: string): Promise<string> {
     body: JSON.stringify({
       mode: "companion",
       messages: [{ role: "user", content: question }],
-      ...(process.env.KIMI_API_KEY ? {} : { kimiApiKey: apiKey }),
+      ...(process.env.DEEPSEEK_API_KEY ? {} : { deepseekApiKey: apiKey }),
     }),
     signal: AbortSignal.timeout(120_000),
   })
@@ -173,9 +173,9 @@ describe("legal golden live regression (optional)", () => {
         t.skip(`Dev server not at ${BASE_URL}`)
         return
       }
-      const apiKey = process.env.KIMI_API_KEY?.trim()
+      const apiKey = process.env.DEEPSEEK_API_KEY?.trim()
       if (!apiKey) {
-        t.skip("KIMI_API_KEY not set — skipping live legal golden regression")
+        t.skip("DEEPSEEK_API_KEY not set — skipping live legal golden regression")
         return
       }
 

@@ -23,37 +23,37 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import {
-  clearKimiClientConfig,
-  KIMI_DEFAULT_BASE_URL,
-  kimiFieldsForRequest,
-  normalizeKimiBaseUrl,
-  readKimiClientConfig,
-  writeKimiClientConfig,
-} from "@/lib/kimi-client-config"
+  clearDeepSeekClientConfig,
+  DEEPSEEK_DEFAULT_BASE_URL,
+  deepseekFieldsForRequest,
+  normalizeDeepSeekBaseUrl,
+  readDeepSeekClientConfig,
+  writeDeepSeekClientConfig,
+} from "@/lib/deepseek-client-config"
 
-type KimiConfigContextValue = {
+type DeepSeekConfigContextValue = {
   openConfig: () => void
-  kimiRequestFields: { kimiApiKey?: string; kimiBaseUrl?: string }
-  allowClientKimiKey: boolean
+  deepseekRequestFields: { deepseekApiKey?: string; deepseekBaseUrl?: string }
+  allowClientDeepSeekKey: boolean
 }
 
-const KimiConfigContext = createContext<KimiConfigContextValue | null>(null)
+const DeepSeekConfigContext = createContext<DeepSeekConfigContextValue | null>(null)
 
-export function useKimiConfig(): KimiConfigContextValue {
-  const ctx = useContext(KimiConfigContext)
+export function useDeepSeekConfig(): DeepSeekConfigContextValue {
+  const ctx = useContext(DeepSeekConfigContext)
   if (!ctx) {
-    throw new Error("useKimiConfig must be used within KimiConfigProvider")
+    throw new Error("useDeepSeekConfig must be used within DeepSeekConfigProvider")
   }
   return ctx
 }
 
-export function KimiConfigProvider({
+export function DeepSeekConfigProvider({
   children,
 }: {
   children: React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
-  const [allowClientKimiKey, setAllowClientKimiKey] = useState(false)
+  const [allowClientDeepSeekKey, setAllowClientDeepSeekKey] = useState(false)
   const [apiKey, setApiKey] = useState("")
   const [baseUrl, setBaseUrl] = useState("")
   const [draftApiKey, setDraftApiKey] = useState("")
@@ -63,23 +63,23 @@ export function KimiConfigProvider({
   useEffect(() => {
     let cancelled = false
     void fetch("/api/config")
-      .then(async (r) => (await r.json()) as { allowClientKimiKey?: boolean })
+      .then(async (r) => (await r.json()) as { allowClientDeepSeekKey?: boolean })
       .then((data) => {
         if (cancelled) return
-        const allowed = data.allowClientKimiKey === true
-        setAllowClientKimiKey(allowed)
+        const allowed = data.allowClientDeepSeekKey === true
+        setAllowClientDeepSeekKey(allowed)
         if (!allowed) {
-          clearKimiClientConfig()
+          clearDeepSeekClientConfig()
           setApiKey("")
           setBaseUrl("")
         } else {
-          const c = readKimiClientConfig()
+          const c = readDeepSeekClientConfig()
           setApiKey(c.apiKey)
           setBaseUrl(c.baseUrl)
         }
       })
       .catch(() => {
-        if (!cancelled) setAllowClientKimiKey(false)
+        if (!cancelled) setAllowClientDeepSeekKey(false)
       })
     return () => {
       cancelled = true
@@ -87,34 +87,34 @@ export function KimiConfigProvider({
   }, [])
 
   const openConfig = useCallback(() => {
-    if (allowClientKimiKey) {
-      const c = readKimiClientConfig()
+    if (allowClientDeepSeekKey) {
+      const c = readDeepSeekClientConfig()
       setDraftApiKey(c.apiKey)
       setDraftBaseUrl(c.baseUrl)
       setFormError(null)
     }
     setOpen(true)
-  }, [allowClientKimiKey])
+  }, [allowClientDeepSeekKey])
 
   const save = useCallback(() => {
-    if (!allowClientKimiKey) return
+    if (!allowClientDeepSeekKey) return
     setFormError(null)
     const k = draftApiKey.trim()
     const u = draftBaseUrl.trim()
-    if (u.length > 0 && normalizeKimiBaseUrl(u) === null) {
+    if (u.length > 0 && normalizeDeepSeekBaseUrl(u) === null) {
       setFormError(
-        "Base URL 须为 https 地址（例如 " + KIMI_DEFAULT_BASE_URL + "）",
+        "Base URL 须为 https 地址（例如 " + DEEPSEEK_DEFAULT_BASE_URL + "）",
       )
       return
     }
-    writeKimiClientConfig({ apiKey: k, baseUrl: u })
+    writeDeepSeekClientConfig({ apiKey: k, baseUrl: u })
     setApiKey(k)
     setBaseUrl(u)
     setOpen(false)
-  }, [allowClientKimiKey, draftApiKey, draftBaseUrl])
+  }, [allowClientDeepSeekKey, draftApiKey, draftBaseUrl])
 
   const clear = useCallback(() => {
-    clearKimiClientConfig()
+    clearDeepSeekClientConfig()
     setDraftApiKey("")
     setDraftBaseUrl("")
     setApiKey("")
@@ -123,40 +123,40 @@ export function KimiConfigProvider({
     setOpen(false)
   }, [])
 
-  const kimiRequestFields = useMemo(
+  const deepseekRequestFields = useMemo(
     () =>
-      allowClientKimiKey ? kimiFieldsForRequest(apiKey, baseUrl) : {},
-    [allowClientKimiKey, apiKey, baseUrl],
+      allowClientDeepSeekKey ? deepseekFieldsForRequest(apiKey, baseUrl) : {},
+    [allowClientDeepSeekKey, apiKey, baseUrl],
   )
 
-  const value = useMemo<KimiConfigContextValue>(
+  const value = useMemo<DeepSeekConfigContextValue>(
     () => ({
       openConfig,
-      kimiRequestFields,
-      allowClientKimiKey,
+      deepseekRequestFields,
+      allowClientDeepSeekKey,
     }),
-    [openConfig, kimiRequestFields, allowClientKimiKey],
+    [openConfig, deepseekRequestFields, allowClientDeepSeekKey],
   )
 
   return (
-    <KimiConfigContext.Provider value={value}>
+    <DeepSeekConfigContext.Provider value={value}>
       {children}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Kimi 接口配置</DialogTitle>
+            <DialogTitle>DeepSeek 接口配置</DialogTitle>
             <DialogDescription>
-              {allowClientKimiKey
-                ? "仅本地开发可用：密钥保存在浏览器 localStorage。生产环境请配置服务端环境变量 KIMI_API_KEY。"
-                : "生产环境不在浏览器中保存或传输 API Key。请在部署平台配置环境变量 KIMI_API_KEY / KIMI_BASE_URL。"}
+              {allowClientDeepSeekKey
+                ? "仅本地开发可用：密钥保存在浏览器 localStorage。生产环境请配置服务端环境变量 DEEPSEEK_API_KEY。"
+                : "生产环境不在浏览器中保存或传输 API Key。请在部署平台配置环境变量 DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL。"}
             </DialogDescription>
           </DialogHeader>
-          {allowClientKimiKey ? (
+          {allowClientDeepSeekKey ? (
             <div className="grid gap-4 py-2">
               <div className="grid gap-2">
-                <Label htmlFor="kimi-api-key">KIMI_API_KEY</Label>
+                <Label htmlFor="deepseek-api-key">DEEPSEEK_API_KEY</Label>
                 <Input
-                  id="kimi-api-key"
+                  id="deepseek-api-key"
                   type="password"
                   autoComplete="off"
                   value={draftApiKey}
@@ -165,14 +165,14 @@ export function KimiConfigProvider({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="kimi-base-url">KIMI_BASE_URL</Label>
+                <Label htmlFor="deepseek-base-url">DEEPSEEK_BASE_URL</Label>
                 <Input
-                  id="kimi-base-url"
+                  id="deepseek-base-url"
                   type="url"
                   autoComplete="off"
                   value={draftBaseUrl}
                   onChange={(e) => setDraftBaseUrl(e.target.value)}
-                  placeholder={KIMI_DEFAULT_BASE_URL}
+                  placeholder={DEEPSEEK_DEFAULT_BASE_URL}
                 />
               </div>
               {formError && (
@@ -188,7 +188,7 @@ export function KimiConfigProvider({
           )}
           <Separator />
           <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
-            {allowClientKimiKey && (
+            {allowClientDeepSeekKey && (
               <>
                 <Button type="button" variant="outline" onClick={clear}>
                   清除本地配置
@@ -198,7 +198,7 @@ export function KimiConfigProvider({
                 </Button>
               </>
             )}
-            {!allowClientKimiKey && (
+            {!allowClientDeepSeekKey && (
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 关闭
               </Button>
@@ -206,17 +206,17 @@ export function KimiConfigProvider({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </KimiConfigContext.Provider>
+    </DeepSeekConfigContext.Provider>
   )
 }
 
-export function KimiConfigTrigger({
+export function DeepSeekConfigTrigger({
   className,
 }: {
   className?: string
 }) {
-  const { allowClientKimiKey, openConfig } = useKimiConfig()
-  if (!allowClientKimiKey) return null
+  const { allowClientDeepSeekKey, openConfig } = useDeepSeekConfig()
+  if (!allowClientDeepSeekKey) return null
 
   return (
     <Button
@@ -225,7 +225,7 @@ export function KimiConfigTrigger({
       size="sm"
       className={className}
       onClick={openConfig}
-      aria-label="Kimi 接口配置"
+      aria-label="DeepSeek 接口配置"
     >
       <Settings2Icon className="size-5" />
       <span className="hidden md:inline">接口设置</span>

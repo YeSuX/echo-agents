@@ -64,3 +64,14 @@ export function kimiTimeoutMs(): number {
   const n = Number.parseInt(raw, 10)
   return Number.isFinite(n) && n >= 5_000 ? n : 60_000
 }
+
+export function kimiChatOptions(): {
+  model: string
+  thinking?: { type: "disabled" }
+} {
+  const model = process.env.KIMI_MODEL?.trim() || "kimi-k2.6"
+  // Skip reasoning latency for conversational replies on the supported default.
+  return model === "kimi-k2.6"
+    ? { model, thinking: { type: "disabled" } }
+    : { model }
+}

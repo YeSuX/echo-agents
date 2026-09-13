@@ -29,8 +29,10 @@ import { desensitizeText } from "../lib/safety/desensitize"
 import { checkGuestResponse } from "../lib/safety/guest-boundary"
 import {
   isClientKimiKeyAllowed,
+  kimiChatOptions,
   resolveKimiClient,
 } from "../lib/safety/kimi-server"
+import { logSafeError, sanitizeErrorMessage } from "../lib/safety/safe-log"
 import { moderateAssistantOutput } from "../lib/safety/output-moderation"
 import {
   detectPromptInjection,
@@ -294,6 +296,58 @@ describe("API key policy", () => {
     withEnv({ NODE_ENV: "production", ALLOW_CLIENT_KIMI_KEY: "1" }, () => {
       assert.equal(isClientKimiKeyAllowed(), true)
     })
+  })
+})
+
+describe("Kimi model availability and diagnostics", () => {
+  it("defaults to the available conversational model without reasoning latency", () => {
+    for (const value of [undefined, "", "  "]) {
+      withEnv({ KIMI_MODEL: value }, () => {
+        assert.deepEqual(kimiChatOptions(), {
+          model: "kimi-k2.6",
+          thinking: { type: "disabled" },
+        })
+      })
+    }
+  })
+
+  it("accepts a server override without imposing model-specific parameters", () => {
+    withEnv({ KIMI_MODEL: "  custom-model  " }, () => {
+      assert.deepEqual(kimiChatOptions(), { model: "custom-model" })
+    })
+  })
+
+  it("classifies HTTP failures without depending on provider message wording", () => {
+    for (const [status, expected] of [
+      [404, "upstream_model_unavailable"],
+      [401, "upstream_auth"],
+      [403, "upstream_auth"],
+      [429, "upstream_rate_limited"],
+      [504, "upstream_timeout"],
+      [500, "upstream_error"],
+    ] as const) {
+      assert.equal(sanitizeErrorMessage(Object.assign(new Error("Request failed"), { status })), expected)
+    }
+  })
+
+  it("logs HTTP status without serializing upstream bodies or credentials", () => {
+    const error = Object.assign(new Error("private message sk-secret"), {
+      status: 404,
+      headers: { authorization: "Bearer sk-secret" },
+      error: { message: "private message" },
+    })
+    const original = console.error
+    const logs: string[] = []
+    try {
+      console.error = (line: string) => logs.push(line)
+      withEnv({ NODE_ENV: "production" }, () => logSafeError("chat/kimi", error))
+    } finally {
+      console.error = original
+    }
+    assert.equal(logs.length, 1)
+    assert.equal(JSON.parse(logs[0]).upstreamStatus, 404)
+    assert.equal(JSON.parse(logs[0]).errorKind, "upstream_model_unavailable")
+    assert.doesNotMatch(logs[0], /private message|sk-secret|authorization/)
   })
 })
 

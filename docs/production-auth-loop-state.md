@@ -51,7 +51,7 @@ Fix production sign-in and sign-up hanging after a reported successful login. Ke
 - The old development-instance handshake generated a signing-key mismatch warning after deployment before the fresh login. Fresh navigation is required when an old tab retains the invalid handshake URL.
 - Inspected post-deployment events include successful cookie-bearing requests for support and preference loading, with warm prerendered RSC requests often using 3-6 ms CPU. Some cold and dynamic requests still exceed the nominal 10 ms budget; successful samples do not establish that the resource cap is eliminated.
 - Full new-account registration/email verification was not performed. Both registration entry HTML/RSC and its verification subpath were checked; real new-user registration remains separate acceptance.
-- User-driven chat requests observed during the final log window reported sanitized upstream Kimi errors. This task did not invoke the model or change its key. Track that separately if chat recovery is requested.
+- User-driven chat requests observed during the final log window reported sanitized upstream Kimi errors. This auth task did not invoke the model or change its key. The subsequent authorized chat repair is tracked in `docs/production-chat-loop-state.md`: the configured account rejected the old model with 404, and production streaming recovered after switching to an available model.
 
 ## Next step and stop conditions
 

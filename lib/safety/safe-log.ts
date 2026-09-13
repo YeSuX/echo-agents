@@ -1,4 +1,14 @@
-/** 安全日志：不记录用户正文或 API Key */
+function upstreamStatus(error: unknown): number | undefined {
+  if (error === null || typeof error !== "object" || !("status" in error)) {
+    return undefined
+  }
+  const status = error.status
+  return typeof status === "number" && Number.isInteger(status) && status >= 400 && status <= 599
+    ? status
+    : undefined
+}
+
+/** Log diagnostics without request content, headers, or credentials. */
 export function logSafeError(
   scope: string,
   error: unknown,
@@ -13,6 +23,8 @@ export function logSafeError(
     scope,
     errorName: name,
     errorCode: code,
+    upstreamStatus: upstreamStatus(error),
+    errorKind: sanitizeErrorMessage(error),
     ...meta,
   }
   if (process.env.NODE_ENV === "development") {
@@ -23,6 +35,11 @@ export function logSafeError(
 }
 
 export function sanitizeErrorMessage(error: unknown): string {
+  const status = upstreamStatus(error)
+  if (status === 404) return "upstream_model_unavailable"
+  if (status === 401 || status === 403) return "upstream_auth"
+  if (status === 429) return "upstream_rate_limited"
+  if (status === 408 || status === 504) return "upstream_timeout"
   if (error instanceof Error) {
     const msg = error.message.toLowerCase()
     if (msg.includes("timeout") || msg.includes("timed out")) {

@@ -22,6 +22,7 @@ import { formatSopBlock, retrieveSop } from "@/lib/retrieve-sop"
 import { conversationHasCrisis } from "@/lib/safety/crisis"
 import { checkGuestResponse } from "@/lib/safety/guest-boundary"
 import {
+  kimiChatOptions,
   kimiTimeoutMs,
   resolveKimiClient,
 } from "@/lib/safety/kimi-server"
@@ -60,8 +61,6 @@ import {
   MAX_CHAT_MESSAGE_CHARS,
   recentUserContext,
 } from "@/lib/chat-context"
-
-const KIMI_MODEL = "kimi-k2.5"
 
 type ChatRole = "user" | "assistant"
 
@@ -371,7 +370,7 @@ async function streamKimiWithModeration(
 
   const stream = await client.chat.completions.create(
     {
-      model: KIMI_MODEL,
+      ...kimiChatOptions(),
       stream: true,
       messages: [
         { role: "system", content: systemPrompt },

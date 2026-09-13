@@ -41,6 +41,7 @@ bun run test:legal-golden # 法律问句 golden 回归；live 需 KIMI_API_KEY
 
 - `KIMI_API_KEY`：Moonshot Kimi API Key（对话接口需要；也可仅在浏览器弹窗中配置）
 - `KIMI_BASE_URL`：可选，默认 `https://api.moonshot.cn/v1`
+- `KIMI_MODEL`: optional server-side model override; defaults to `kimi-k2.6` with thinking disabled for conversational latency. The configured Moonshot account must have access to the selected model.
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`：Clerk frontend publishable key
 - `CLERK_SECRET_KEY`：Clerk server secret
 - `CLERK_WEBHOOK_SIGNING_SECRET`：Clerk `user.deleted` webhook verification secret

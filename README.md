@@ -55,6 +55,30 @@ bun run cf-typegen
 
 在 **同伴对话** 与 **嘉宾对话** 页顶栏点击 **齿轮按钮**，可打开 shadcn `Dialog`，将 `KIMI_API_KEY` / `KIMI_BASE_URL` 存入 **localStorage**；调用 `/api/chat` 时会随请求体带上，**优先于**服务端环境变量。点击「清除本地配置」后恢复为仅使用 `.env`。
 
+## Production build and deployment
+
+`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` must be available **during the build**.
+Set the existing production instance's `pk_live_` key in the CI build environment
+or the ignored `.env.production.local`; keep `CLERK_SECRET_KEY` in Worker secrets.
+Runtime Worker secrets alone cannot populate the browser bundle. Builds now fail
+early when the publishable key is empty or missing.
+
+Start Bun in production mode so it loads `.env.production.local` before
+`.env.local`. Otherwise Bun can pass development keys to Next.js through the
+process environment, which takes precedence over Next.js environment files.
+
+```bash
+NODE_ENV=production bun run build:cloudflare
+bunx wrangler deploy --dry-run
+# Deploy the already verified artifact after any required production approval.
+NODE_ENV=production bunx opennextjs-cloudflare deploy
+```
+
+For remote builds, configure the same production publishable key in the build
+system as well. Do not generate a new Clerk instance to repair a missing build
+variable. After deployment, verify `/`, `/sign-in`, and `/api/config` return 200,
+and anonymous `/api/conversations` returns 401.
+
 ## 主要路由
 
 | 路径 | 说明 |

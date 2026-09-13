@@ -20,7 +20,9 @@ export default function config(phase: string): NextConfig {
     );
   }
 
-  if (phase === PHASE_PRODUCTION_BUILD) {
+  if (phase === PHASE_PRODUCTION_BUILD && 
+    process.env.ALLOW_CLERK_TEST_KEYS !== "1"
+  ) {
     if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.startsWith("pk_live_")) {
       throw new Error(
         "Production builds require a Clerk production publishable key (pk_live_). " +

@@ -13,6 +13,7 @@ import assert from "node:assert/strict"
 import { describe, it, before } from "node:test"
 
 import { CRISIS_FIXED_RESPONSE, REDACT_PLACEHOLDER } from "../lib/safety/constants"
+import { STORY_CONSENT_VERSION } from "../lib/story-contribution"
 import { CRISIS_HOTLINE } from "../data/support-resources"
 import { applySseParseResult, parseSseDataLine } from "../lib/sse-chat"
 
@@ -108,7 +109,7 @@ async function postStory(text: string): Promise<Response> {
   return fetch(`${BASE_URL}/api/stories/contribute`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, submissionId: crypto.randomUUID(), consent: true, consentVersion: STORY_CONSENT_VERSION }),
   })
 }
 

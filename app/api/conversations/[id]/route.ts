@@ -14,7 +14,7 @@ const updateSchema = z.object({
   status: z.enum(["active", "archived"]),
 })
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   const userId = await authenticatedUserId()
   if (!userId) return apiError("AUTH_REQUIRED", "Sign in required", 401)
 
@@ -24,12 +24,19 @@ export async function GET(_request: Request, context: RouteContext) {
   if (!conversation) {
     return apiError("CONVERSATION_NOT_FOUND", "Conversation not found", 404)
   }
+  const offset = Number(new URL(request.url).searchParams.get("offset") ?? "0")
+  if (!Number.isSafeInteger(offset) || offset < 0) {
+    return apiError("INVALID_OFFSET", "Invalid history offset", 400)
+  }
+  const pageSize = 100
+  const records = await repository.listTurns(userId, id, pageSize + 1, offset)
   const turns = await decryptTurns(
-    await repository.listTurns(userId, id),
+    records.slice(0, pageSize),
     conversationKeyringFromEnv(),
   )
   return Response.json(
-    { conversation: toPublicConversation(conversation), turns },
+    { conversation: toPublicConversation(conversation), turns,
+      nextOffset: records.length > pageSize ? offset + pageSize : null },
     { headers: PRIVATE_JSON_HEADERS },
   )
 }

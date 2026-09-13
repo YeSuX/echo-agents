@@ -29,6 +29,8 @@ import {
   MAX_CHAT_INPUT_CHARS,
   toChatApiMessages,
 } from "@/lib/chat-context"
+import { loadConversationHistory } from "@/lib/conversation-history"
+import { conversationToStoryDraft, createStoryDraft, writeStoryDraft } from "@/lib/story-contribution"
 import { useConversationPersistence } from "@/hooks/use-conversation-persistence"
 
 const AGENT_OPENING =
@@ -57,13 +59,6 @@ function conversationUserText(messages: ConversationMessage[]): string {
     .join("\n")
 }
 
-function persistStoryDraft(messages: ConversationMessage[]) {
-  const draft = messages
-    .filter((m) => m.role === "user")
-    .map((m) => m.content)
-    .join("\n\n")
-  sessionStorage.setItem("companion-story-draft", draft)
-}
 
 export function ConversationPage({
   guestId,
@@ -77,6 +72,8 @@ export function ConversationPage({
     guestId,
   })
   const { isSignedIn, resumeConversation } = persistence
+  const [loadedHistoryId, setLoadedHistoryId] = useState<string | undefined>(undefined)
+  const historyLoading = Boolean(initialConversationId && loadedHistoryId !== initialConversationId)
   const [input, setInput] = useState("")
   const [messages, setMessages] = useState<ConversationMessage[]>(() => {
     if (initialMessages.length > 0) return initialMessages
@@ -98,6 +95,20 @@ export function ConversationPage({
   const scrollRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
+  const prepareStoryDraft = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (isSending || historyLoading) {
+      event.preventDefault()
+      setError("Please wait for history to load and stop generation or wait for the reply before sharing.")
+      return
+    }
+    try {
+      writeStoryDraft(sessionStorage, createStoryDraft(conversationToStoryDraft(messagesRef.current)))
+    } catch {
+      event.preventDefault()
+      setError("The browser could not retain your draft. Copy the conversation before leaving.")
+    }
+  }
+
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, streamingContent, streamingReasoning])
@@ -105,21 +116,8 @@ export function ConversationPage({
   useEffect(() => {
     if (!initialConversationId || !isSignedIn) return
     let cancelled = false
-    void fetch(`/api/conversations/${initialConversationId}`, {
-      cache: "no-store",
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("无法读取这段对话")
-        return (await response.json()) as {
-          conversation: { mode: string; guestId: string | null }
-          turns: Array<{
-            id: string
-            userContent: string
-            assistantContent: string | null
-            status: "pending" | "completed" | "stopped" | "failed"
-          }>
-        }
-      })
+    const historyAbort = new AbortController()
+    void loadConversationHistory(initialConversationId, historyAbort.signal)
       .then((body) => {
         if (
           cancelled ||
@@ -154,6 +152,7 @@ export function ConversationPage({
           }
         }
         setMessages(restored)
+        setLoadedHistoryId(initialConversationId)
       })
       .catch((cause) => {
         if (!cancelled) {
@@ -162,12 +161,13 @@ export function ConversationPage({
       })
     return () => {
       cancelled = true
+      historyAbort.abort()
     }
   }, [guestId, initialConversationId, isSignedIn, resumeConversation])
 
   const handleSend = useCallback(async () => {
     const text = input.trim()
-    if (!text || isSending) return
+    if (!text || isSending || historyLoading) return
     setInput("")
     setError(null)
     const userMsg: ConversationMessage = {
@@ -267,7 +267,7 @@ export function ConversationPage({
       setIsSending(false)
       abortRef.current = null
     }
-  }, [guestId, input, isSending, messages, deepseekRequestFields, persistence])
+  }, [guestId, input, isSending, historyLoading, messages, deepseekRequestFields, persistence])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -319,6 +319,7 @@ export function ConversationPage({
         <SupportResourcesDropdown />
       </header>
 
+      {historyLoading && <p className="shrink-0 border-b px-4 py-2 text-sm text-muted-foreground" role="status">Loading the complete conversation history…</p>}
       {error && (
         <div
           className="shrink-0 border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-sm text-destructive"
@@ -391,7 +392,7 @@ export function ConversationPage({
             onKeyDown={handleKeyDown}
             placeholder="输入你想问的…（例如 ta 的经历、态度或观点）"
             className="min-w-0"
-            disabled={isSending}
+            disabled={isSending || historyLoading}
             maxLength={MAX_CHAT_INPUT_CHARS}
             aria-label="输入你想问的问题"
           />
@@ -410,7 +411,7 @@ export function ConversationPage({
               type="button"
               size="icon"
               onClick={() => void handleSend()}
-              disabled={!input.trim()}
+              disabled={!input.trim() || historyLoading}
               aria-label="发送"
             >
               <SendIcon className="size-4" />
@@ -427,7 +428,7 @@ export function ConversationPage({
         <Link
           href="/support/end"
           className="underline-offset-4 hover:underline"
-          onClick={() => persistStoryDraft(messagesRef.current)}
+          onClick={prepareStoryDraft}
         >
           结束对话
         </Link>

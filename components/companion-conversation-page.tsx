@@ -48,6 +48,8 @@ import {
   MAX_CHAT_INPUT_CHARS,
   toChatApiMessages,
 } from "@/lib/chat-context"
+import { loadConversationHistory } from "@/lib/conversation-history"
+import { conversationToStoryDraft, createStoryDraft, writeStoryDraft } from "@/lib/story-contribution"
 import { useConversationPersistence } from "@/hooks/use-conversation-persistence"
 
 type MessageRole = "agent" | "user"
@@ -66,13 +68,6 @@ function conversationUserText(messages: ConversationMessage[]): string {
     .join("\n")
 }
 
-function persistStoryDraft(messages: ConversationMessage[]) {
-  const draft = messages
-    .filter((m) => m.role === "user")
-    .map((m) => m.content)
-    .join("\n\n")
-  sessionStorage.setItem("companion-story-draft", draft)
-}
 
 export function CompanionConversationPage({
   initialConversationId,
@@ -84,6 +79,8 @@ export function CompanionConversationPage({
     mode: "companion",
   })
   const { isSignedIn, resumeConversation } = persistence
+  const [loadedHistoryId, setLoadedHistoryId] = useState<string | undefined>(undefined)
+  const historyLoading = Boolean(initialConversationId && loadedHistoryId !== initialConversationId)
   const [input, setInput] = useState("")
   const [messages, setMessages] = useState<ConversationMessage[]>([
     { id: "opening", role: "agent", content: COMPANION_OPENING },
@@ -97,6 +94,20 @@ export function CompanionConversationPage({
   const [error, setError] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+
+  const prepareStoryDraft = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (isSending || historyLoading) {
+      event.preventDefault()
+      setError("Please wait for history to load and stop generation or wait for the reply before sharing.")
+      return
+    }
+    try {
+      writeStoryDraft(sessionStorage, createStoryDraft(conversationToStoryDraft(messagesRef.current)))
+    } catch {
+      event.preventDefault()
+      setError("The browser could not retain your draft. Copy the conversation before leaving.")
+    }
+  }
   const hasConversation = messages.length > 1 || isSending
   const showSidebar = selfHelpItems.length > 0
 
@@ -107,21 +118,8 @@ export function CompanionConversationPage({
   useEffect(() => {
     if (!initialConversationId || !isSignedIn) return
     let cancelled = false
-    void fetch(`/api/conversations/${initialConversationId}`, {
-      cache: "no-store",
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("无法读取这段对话")
-        return (await response.json()) as {
-          conversation: { mode: string }
-          turns: Array<{
-            id: string
-            userContent: string
-            assistantContent: string | null
-            status: "pending" | "completed" | "stopped" | "failed"
-          }>
-        }
-      })
+    const historyAbort = new AbortController()
+    void loadConversationHistory(initialConversationId, historyAbort.signal)
       .then((body) => {
         if (cancelled || body.conversation.mode !== "companion") return
         resumeConversation(initialConversationId)
@@ -150,6 +148,7 @@ export function CompanionConversationPage({
           }
         }
         setMessages(restored)
+        setLoadedHistoryId(initialConversationId)
       })
       .catch((cause) => {
         if (!cancelled) {
@@ -158,13 +157,14 @@ export function CompanionConversationPage({
       })
     return () => {
       cancelled = true
+      historyAbort.abort()
     }
   }, [initialConversationId, isSignedIn, resumeConversation])
 
   const sendMessage = useCallback(
     async (rawText: string) => {
       const text = rawText.trim()
-      if (!text || isSending) return
+      if (!text || isSending || historyLoading) return
       setError(null)
       const userMsg: ConversationMessage = {
         id: `user-${Date.now()}`,
@@ -265,7 +265,7 @@ export function CompanionConversationPage({
         abortRef.current = null
       }
     },
-    [isSending, messages, deepseekRequestFields, persistence],
+    [isSending, historyLoading, messages, deepseekRequestFields, persistence],
   )
 
   const handleSend = useCallback(() => {
@@ -348,7 +348,7 @@ export function CompanionConversationPage({
           <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
             <Link
               href="/support/end"
-              onClick={() => persistStoryDraft(messagesRef.current)}
+              onClick={prepareStoryDraft}
             >
               结束对话
             </Link>
@@ -356,6 +356,7 @@ export function CompanionConversationPage({
         </div>
       </header>
 
+      {historyLoading && <p className="shrink-0 border-b px-4 py-2 text-sm text-muted-foreground" role="status">Loading the complete conversation history…</p>}
       {error && (
         <div
           className="shrink-0 border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-sm text-destructive"
@@ -405,7 +406,7 @@ export function CompanionConversationPage({
                 <QuickReplies
                   replies={COMPANION_QUICK_REPLIES}
                   onPick={handleQuickPick}
-                  disabled={isSending}
+                  disabled={isSending || historyLoading}
                 />
               </section>
             )}
@@ -424,7 +425,7 @@ export function CompanionConversationPage({
               placeholder="慢慢输入你想说的…"
               className="max-h-32 min-h-11 resize-none bg-background py-3"
               rows={1}
-              disabled={isSending}
+              disabled={isSending || historyLoading}
               maxLength={MAX_CHAT_INPUT_CHARS}
               aria-label="输入消息"
             />
@@ -444,7 +445,7 @@ export function CompanionConversationPage({
                 type="button"
                 className="h-11 px-4"
                 onClick={handleSend}
-                disabled={!input.trim()}
+                disabled={!input.trim() || historyLoading}
               >
                 <SendIcon className="size-4" />
                 <span className="hidden sm:inline">发送</span>
@@ -469,7 +470,7 @@ export function CompanionConversationPage({
           <Link
             href="/support/end"
             className="mt-2 inline-flex text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:hidden"
-            onClick={() => persistStoryDraft(messagesRef.current)}
+            onClick={prepareStoryDraft}
           >
             结束对话
           </Link>

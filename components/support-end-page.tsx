@@ -12,6 +12,7 @@ import {
   PhoneIcon,
 } from "lucide-react"
 
+import { readStoryDraft, createStoryDraft, type StoryDraft } from "@/lib/story-contribution"
 import { StoryContributionDialog } from "@/components/story-contribution-dialog"
 import { Button } from "@/components/ui/button"
 import {
@@ -24,12 +25,8 @@ import { SUPPORT_RESOURCES } from "@/data/support-resources"
 export function SupportEndPage() {
   const pathname = usePathname()
   const returningToGuests = pathname.startsWith("/guests")
-  const [draft] = useState(() => {
-    if (typeof window === "undefined") return ""
-    const d = sessionStorage.getItem("companion-story-draft") ?? ""
-    sessionStorage.removeItem("companion-story-draft")
-    return d
-  })
+  const [draft, setDraft] = useState<StoryDraft | null>(null)
+  const [draftError, setDraftError] = useState<string | null>(null)
   const [storyOpen, setStoryOpen] = useState(false)
 
   return (
@@ -79,7 +76,15 @@ export function SupportEndPage() {
                     size="sm"
                     className="mt-3 bg-background"
                     type="button"
-                    onClick={() => setStoryOpen(true)}
+                    onClick={() => {
+                      setDraftError(null)
+                      try { setDraft(readStoryDraft(sessionStorage)) }
+                      catch {
+                        setDraft(createStoryDraft())
+                        setDraftError("The browser could not read your draft. You can paste the text you want to share.")
+                      }
+                      setStoryOpen(true)
+                    }}
                   >
                     匿名分享经历
                   </Button>
@@ -135,6 +140,7 @@ export function SupportEndPage() {
         open={storyOpen}
         onOpenChange={setStoryOpen}
         initialDraft={draft}
+        initialError={draftError}
       />
     </div>
   )

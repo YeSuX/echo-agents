@@ -445,6 +445,7 @@ export class ConversationRepository {
     userId: string,
     conversationId: string,
     limit = 100,
+    offset = 0,
   ): Promise<EncryptedTurnRecord[]> {
     const result = await this.db
       .prepare(
@@ -456,9 +457,9 @@ export class ConversationRepository {
              WHERE c.id = t.conversation_id AND c.owner_id = ?
            )
          ORDER BY t.created_at ASC, t.id ASC
-         LIMIT ?`,
+         LIMIT ? OFFSET ?`,
       )
-      .bind(conversationId, userId, limit)
+      .bind(conversationId, userId, limit, offset)
       .all<TurnRow>()
     return result.results.map(toTurn)
   }

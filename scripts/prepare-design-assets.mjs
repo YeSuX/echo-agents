@@ -13,6 +13,8 @@ const illustrations = [
   "case-deepfake", "case-compensation", "case-takedown",
 ]
 const assets = [
+  { source: "generated/home-hero-v2.png", output: "optimized/home-hero-v2.webp", width: 1672 },
+  { source: "generated/story-envelope-v1.png", output: "optimized/story-envelope-v1.webp", width: 640 },
   { source: "../logo.PNG", output: "optimized/companion-avatar.webp", width: 512 },
   { source: "hero-portrait.png", output: "hero-portrait.webp", width: 2560 },
   ...illustrations.map((name) => ({ source: `${name}.svg`, output: `optimized/${name}.webp`, width: 512 })),

@@ -1,5 +1,13 @@
 # UI refresh
 
+## Homepage concept follow-up (2026-10-13)
+
+The homepage now follows [Figma 206:89](https://www.figma.com/design/kS71785BD8Bj6wnh4tI0A7/?node-id=206-89): a lavender/peach backlit portrait on the left, safety and support contacts on the right, and guest stories with a voluntary sharing card below. Mobile stacks the safety card below the introduction. Existing educational content and case links remain further down the page. The story button reuses the existing draft, review and consent dialog without changing submission behavior.
+
+Two assets were generated with the built-in image tool. The final hero was edited to move the person into the left half and preserve quiet space on the right. Generated source files, optimized WebP paths and exact prompts are recorded in [home-concept-assets.md](home-concept-assets.md). The prior supplied hero is retained. The historical implementation notes below describe the earlier design.
+
+Validation completed on 2026-10-15: changed-file ESLint, TypeScript, diff checks and a local production webpack build passed (20 pages; the existing `ALLOW_CLERK_TEST_KEYS=1` option was used only for local verification). Desktop, 390px and 320px browser checks covered image loading, overflow, support expansion, privacy/story dialogs and navigation to `/support`. No real chat, story submission or deployment was performed.
+
 Implemented on `feature/ui-refresh`, based on the existing application at `107c642`.
 
 ## Design references

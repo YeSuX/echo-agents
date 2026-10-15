@@ -2,11 +2,12 @@
 
 import Link from "next/link"
 import Image from "next/image"
+import { DESIGN_ASSETS } from "@/lib/design-assets"
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
   ArrowLeftIcon,
   LockKeyholeIcon,
-  MenuIcon,
+  BookOpenIcon,
   SendIcon,
   SquareIcon,
 } from "lucide-react"
@@ -21,20 +22,21 @@ import {
   DeepSeekConfigTrigger,
   useDeepSeekConfig,
 } from "@/components/deepseek-config-provider"
-import { SupportResourcesDropdown } from "@/components/support-resources-dropdown"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { COMPANION_AGENT_LABEL, COMPANION_OPENING } from "@/lib/companion-agent"
 import { COMPANION_QUICK_REPLIES } from "@/data/quick-replies"
+import { SELF_HELP_CATALOG } from "@/data/self-help-catalog"
 import {
+  catalogEntryToPanelItem,
   deriveSelfHelpFromConversation,
   mergeSelfHelpDeduped,
   type SelfHelpPanelItem,
@@ -51,6 +53,17 @@ import {
 import { loadConversationHistory } from "@/lib/conversation-history"
 import { conversationToStoryDraft, createStoryDraft, writeStoryDraft } from "@/lib/story-contribution"
 import { useConversationPersistence } from "@/hooks/use-conversation-persistence"
+import styles from "@/components/companion-refresh.module.css"
+
+const DEFAULT_SELF_HELP_ITEMS = [
+  "guide-nonconsensual",
+  "guide-deepfake",
+  "evidence-guide",
+  "takedown-letter",
+].flatMap((id) => {
+  const entry = SELF_HELP_CATALOG.find((item) => item.id === id)
+  return entry ? [catalogEntryToPanelItem(entry)] : []
+})
 
 type MessageRole = "agent" | "user"
 type ConversationMessage = {
@@ -109,7 +122,6 @@ export function CompanionConversationPage({
     }
   }
   const hasConversation = messages.length > 1 || isSending
-  const showSidebar = selfHelpItems.length > 0
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "auto" })
@@ -149,6 +161,7 @@ export function CompanionConversationPage({
         }
         setMessages(restored)
         setLoadedHistoryId(initialConversationId)
+        setSelfHelpItems(deriveSelfHelpFromConversation(conversationUserText(restored)))
       })
       .catch((cause) => {
         if (!cancelled) {
@@ -270,10 +283,10 @@ export function CompanionConversationPage({
 
   const handleSend = useCallback(() => {
     const t = input.trim()
-    if (!t) return
+    if (!t || isSending || historyLoading) return
     setInput("")
     void sendMessage(t)
-  }, [input, sendMessage])
+  }, [input, isSending, historyLoading, sendMessage])
 
   const handleQuickPick = useCallback(
     (text: string) => {
@@ -283,59 +296,51 @@ export function CompanionConversationPage({
   )
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (
+      e.key === "Enter" &&
+      !e.shiftKey &&
+      !e.nativeEvent.isComposing &&
+      e.nativeEvent.keyCode !== 229
+    ) {
       e.preventDefault()
       handleSend()
     }
   }
 
-  const sidebar = <SelfHelpSidebar items={selfHelpItems} />
+  const sidebar = (
+    <SelfHelpSidebar items={mergeSelfHelpDeduped(selfHelpItems, DEFAULT_SELF_HELP_ITEMS)} />
+  )
 
   const chatColumn = (
-    <div className="flex h-dvh flex-col">
-      <header className="flex min-h-16 shrink-0 items-center justify-between gap-2 border-b bg-background px-3 py-2 sm:px-5">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <Button variant="ghost" size="icon" className="shrink-0" asChild>
+    <div className={styles.chatColumn}>
+      <header className={styles.chatHeader}>
+        <div className={styles.brandRow}>
+          <Link href="/" className={styles.brand} aria-label="如荧，返回首页">
+            <span className={styles.brandTitle}>如荧 <span>· 反对影像性暴力</span></span>
+            <span className={styles.brandSubtitle}>{COMPANION_AGENT_LABEL}小荧</span>
+          </Link>
+          <Button variant="ghost" size="icon" className={styles.backButton} asChild>
             <Link href="/" aria-label="返回首页">
-              <ArrowLeftIcon className="size-5" />
+              <ArrowLeftIcon className="size-4" />
             </Link>
           </Button>
-          <div className="min-w-0 flex-1 leading-tight">
-            <p className="truncate text-sm font-medium sm:text-base">
-              小荧 · {COMPANION_AGENT_LABEL}
-            </p>
-            <p className="truncate text-xs text-muted-foreground">
-              {persistence.historyEnabled
-                ? "已加密同步到云端"
-                : persistence.isSignedIn
-                  ? "云端同步已关闭"
-                  : "临时对话，不保存"}
-            </p>
-          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {showSidebar && (
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="lg:hidden"
-                  type="button"
-                >
-                  <MenuIcon className="size-4" />
-                  自助工具
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-full p-0 sm:max-w-sm">
-                <SheetHeader className="sr-only">
-                  <SheetTitle>智能自助包</SheetTitle>
-                </SheetHeader>
-                {sidebar}
-              </SheetContent>
-            </Sheet>
-          )}
-          {allowClientDeepSeekKey && <DeepSeekConfigTrigger />}
+        <div className={styles.toolbar} aria-label="对话管理">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="sm" className="lg:hidden" type="button">
+                <BookOpenIcon className="size-4" />
+                自助包
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-full border-0 p-0 sm:max-w-md">
+              <SheetHeader className="sr-only">
+                <SheetTitle>智能自助包</SheetTitle>
+                <SheetDescription>阅读或保存相关指南，也可以查看真人支持资源。</SheetDescription>
+              </SheetHeader>
+              {sidebar}
+            </SheetContent>
+          </Sheet>
           <ConversationSaveControl
             isSignedIn={persistence.isSignedIn}
             historyEnabled={persistence.historyEnabled}
@@ -343,9 +348,9 @@ export function CompanionConversationPage({
             onEnable={persistence.enableHistory}
             onDisable={persistence.disableHistory}
           />
+          {allowClientDeepSeekKey && <DeepSeekConfigTrigger />}
           <AuthControls compact />
-          <SupportResourcesDropdown />
-          <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
+          <Button variant="ghost" size="sm" asChild>
             <Link
               href="/support/end"
               onClick={prepareStoryDraft}
@@ -366,124 +371,111 @@ export function CompanionConversationPage({
         </div>
       )}
 
-      <ScrollArea className="min-h-0 flex-1 bg-muted/[0.16]">
+      <div className={styles.conversationScroll}>
         <main
-          className="flex min-h-full flex-col px-4 py-6 sm:py-8"
+          className={cn(styles.conversationMain, !hasConversation && styles.initialMain)}
           aria-live="polite"
           aria-relevant="additions"
+          aria-label="与小荧的对话"
         >
-          <div className="mx-auto w-full max-w-3xl space-y-5">
-            {messages.map((msg) =>
-              msg.role === "agent" ? (
-                <AgentBubble
-                  key={msg.id}
-                  content={msg.content}
-                  isFallback={msg.isFallback}
-                  reasoning={msg.reasoning}
-                />
-              ) : (
-                <UserBubble key={msg.id} content={msg.content} />
-              ),
-            )}
-            {isSending && (
-              <AgentBubble
-                content={streamingContent}
-                reasoning={streamingReasoning}
-                streaming
-                className={cn(streamingContent && "opacity-90")}
+          {!hasConversation ? (
+            <section className={styles.welcome} aria-labelledby="welcome-heading">
+              <Image
+                src={DESIGN_ASSETS.companion}
+                alt="同伴支持者小荧"
+                width={220}
+                height={220}
+                priority
+                className={styles.welcomeAvatar}
               />
-            )}
-            {!hasConversation && (
-              <section className="pt-3" aria-labelledby="quick-start-heading">
-                <div className="mb-3">
-                  <h2 id="quick-start-heading" className="text-sm font-semibold">
-                    你现在最需要什么？
-                  </h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    可以选择一个常见问题，也可以直接输入自己的情况。
-                  </p>
-                </div>
-                <QuickReplies
-                  replies={COMPANION_QUICK_REPLIES}
-                  onPick={handleQuickPick}
-                  disabled={isSending || historyLoading}
+              <h1 id="welcome-heading">你不用独自面对黑夜，我会陪你走过</h1>
+              <p>{COMPANION_OPENING}</p>
+            </section>
+          ) : (
+            <div className={styles.messages}>
+              {messages.map((msg) =>
+                msg.role === "agent" ? (
+                  <AgentBubble key={msg.id} content={msg.content} reasoning={msg.reasoning} isFallback={msg.isFallback} />
+                ) : (
+                  <UserBubble key={msg.id} content={msg.content} />
+                ),
+              )}
+              {isSending && (
+                <AgentBubble
+                  content={streamingContent}
+                  reasoning={streamingReasoning}
+                  streaming
+                  className={cn(streamingContent && "opacity-90")}
                 />
-              </section>
-            )}
-          </div>
+              )}
+            </div>
+          )}
           <div ref={scrollRef} />
         </main>
-      </ScrollArea>
+      </div>
 
-      <div className="shrink-0 border-t bg-background">
-        <div className="mx-auto max-w-3xl px-4 py-3">
-          <div className="flex items-end gap-2">
-            <Textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="慢慢输入你想说的…"
-              className="max-h-32 min-h-11 resize-none bg-background py-3"
-              rows={1}
-              disabled={isSending || historyLoading}
-              maxLength={MAX_CHAT_INPUT_CHARS}
-              aria-label="输入消息"
-            />
-            {isSending ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11 px-4"
-                onClick={() => abortRef.current?.abort()}
-              >
-                <SquareIcon className="size-3.5 fill-current" />
-                <span className="hidden sm:inline">停止</span>
-                <span className="sr-only sm:hidden">停止生成</span>
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                className="h-11 px-4"
-                onClick={handleSend}
-                disabled={!input.trim() || historyLoading}
-              >
-                <SendIcon className="size-4" />
-                <span className="hidden sm:inline">发送</span>
-                <span className="sr-only sm:hidden">发送</span>
-              </Button>
-            )}
-          </div>
-          <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <LockKeyholeIcon className="size-3.5" aria-hidden="true" />
-              {persistence.historyEnabled
-                ? "对话内容已加密同步，可在记录页删除"
-                : persistence.isSignedIn
-                  ? "云端同步已关闭，本次对话仅临时保留"
-                  : "未登录，对话仅临时保留"}
-            </span>
-            <span className="hidden sm:inline">Enter 发送，Shift + Enter 换行</span>
-            {input.length >= MAX_CHAT_INPUT_CHARS * 0.8 && (
-              <span>{input.length}/{MAX_CHAT_INPUT_CHARS}</span>
-            )}
-          </div>
-          <Link
-            href="/support/end"
-            className="mt-2 inline-flex text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:hidden"
-            onClick={prepareStoryDraft}
-          >
-            结束对话
-          </Link>
+      <div className={styles.composerArea}>
+        {!hasConversation && (
+          <section className={styles.quickStart} aria-label="选择一个常见问题开始">
+            <QuickReplies replies={COMPANION_QUICK_REPLIES} onPick={handleQuickPick} disabled={isSending || historyLoading} />
+          </section>
+        )}
+        <div className={styles.composer}>
+          <Textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="你可以从任何地方开始说起…"
+            className={styles.messageInput}
+            rows={1}
+            disabled={isSending || historyLoading}
+            maxLength={MAX_CHAT_INPUT_CHARS}
+            aria-label="输入消息"
+          />
+          {isSending ? (
+            <Button
+              type="button"
+              className={styles.sendButton}
+              onClick={() => abortRef.current?.abort()}
+              aria-label="停止生成"
+              title="停止生成"
+            >
+              <SquareIcon className="size-4 fill-current" />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              className={styles.sendButton}
+              onClick={handleSend}
+              disabled={!input.trim() || historyLoading}
+              aria-label="发送消息"
+              title="发送消息"
+            >
+              <SendIcon className="size-5" />
+            </Button>
+          )}
+        </div>
+        <div className={styles.privacyNote}>
+          <span className={styles.privacyStatus}>
+            <LockKeyholeIcon className="size-3 shrink-0" aria-hidden="true" />
+            {persistence.historyEnabled
+              ? "对话已加密同步，可随时在记录页删除"
+              : persistence.isSignedIn
+                ? "云端同步已关闭，本次对话仅临时保留"
+                : "未登录，对话仅临时保留"}
+            <Link href="/privacy">隐私说明</Link>
+          </span>
+          {input.length >= MAX_CHAT_INPUT_CHARS * 0.8 ? (
+            <span>{input.length}/{MAX_CHAT_INPUT_CHARS}</span>
+          ) : (
+            <span className={styles.keyboardHint}>Enter 发送 · Shift + Enter 换行</span>
+          )}
         </div>
       </div>
     </div>
   )
 
-  return (
-    <CompanionLayout sidebar={sidebar} showSidebar={showSidebar}>
-      {chatColumn}
-    </CompanionLayout>
-  )
+  return <CompanionLayout sidebar={sidebar}>{chatColumn}</CompanionLayout>
 }
 
 function AgentBubble({
@@ -500,23 +492,21 @@ function AgentBubble({
   className?: string
 }) {
   return (
-    <div className={cn("flex items-start justify-start gap-3", className)}>
+    <div className={cn(styles.agentRow, className)}>
       <Image
-        src="/logo.PNG"
+        src={DESIGN_ASSETS.companion}
         alt=""
-        width={32}
-        height={32}
-        className="mt-0.5 size-8 shrink-0 rounded-full object-cover"
+        width={40}
+        height={40}
+        className={styles.agentAvatar}
       />
       <div
         className={cn(
-          "max-w-[min(88%,42rem)] rounded-2xl rounded-tl-md px-4 py-3 text-sm leading-6",
-          isFallback
-            ? "border border-border bg-muted/50 text-muted-foreground"
-            : "bg-muted text-foreground",
+          styles.agentBubble,
+          isFallback && styles.fallbackBubble,
         )}
       >
-        <p className="mb-0.5 font-medium text-muted-foreground">
+        <p className={styles.agentLabel}>
           {COMPANION_AGENT_LABEL}
         </p>
         <AgentReasoning content={reasoning} isThinking={streaming && !content} />
@@ -532,8 +522,8 @@ function AgentBubble({
 
 function UserBubble({ content }: { content: string }) {
   return (
-    <div className="flex justify-end">
-      <div className="max-w-[min(88%,42rem)] rounded-2xl rounded-tr-md bg-primary px-4 py-3 text-sm leading-6 text-primary-foreground">
+    <div className={styles.userRow}>
+      <div className={styles.userBubble}>
         <p className="whitespace-pre-wrap">{content}</p>
       </div>
     </div>

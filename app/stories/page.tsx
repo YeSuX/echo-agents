@@ -27,7 +27,7 @@ export default function StoriesPage() {
 
       <ul className="mt-8 space-y-4" role="list">
         {ANONYMOUS_CASES.map((c) => (
-          <li key={c.id}>
+          <li key={c.id} id={c.id} className="scroll-mt-6">
             <Card>
               <CardHeader>
                 <div className="flex flex-wrap gap-1.5">

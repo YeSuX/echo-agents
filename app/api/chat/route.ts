@@ -12,13 +12,11 @@ import {
   type EncryptedTurnRecord,
 } from "@/lib/db/conversation-repository"
 import { getDb } from "@/lib/db/d1"
-import { getCompanionSystemPrompt } from "@/lib/companion-agent"
+import { getCompanionChatPrompt } from "@/lib/companion-chat-prompt"
 import { getGuestSystemPrompt } from "@/lib/guest-agent"
 import { isJsonRecord, parseJson, type Json } from "@/lib/json-parse"
-import { matchCases } from "@/lib/match-cases"
 import { getSelfHelpEntryById } from "@/data/self-help-catalog"
 import { detectIntent, selfHelpIdsForIntents } from "@/lib/intent-detect"
-import { formatSopBlock, retrieveSop } from "@/lib/retrieve-sop"
 import { conversationHasCrisis } from "@/lib/safety/crisis"
 import { checkGuestResponse } from "@/lib/safety/guest-boundary"
 import {
@@ -577,13 +575,10 @@ export async function POST(req: NextRequest) {
 
     let systemPrompt: string
     if (mode === "companion") {
-      const matched = matchCases(routingContext, 2)
-      const sop = retrieveSop(routingContext)
-      systemPrompt = getCompanionSystemPrompt(matched, formatSopBlock(sop))
+      systemPrompt = getCompanionChatPrompt(routingContext)
     } else {
-      systemPrompt = getGuestSystemPrompt(guestId)
+      systemPrompt = `${getGuestSystemPrompt(guestId)}\n\n${CONVERSATION_CONTINUITY_SYSTEM_NOTE}\n\n${PROMPT_INJECTION_SYSTEM_NOTE}`
     }
-    systemPrompt = `${systemPrompt}\n\n${CONVERSATION_CONTINUITY_SYSTEM_NOTE}\n\n${PROMPT_INJECTION_SYSTEM_NOTE}`
 
     const context = buildChatContext(messages)
     const llmMessages = sanitizeMessagesForLlm(context.messages)

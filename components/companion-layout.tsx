@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 
 import { cn } from "@/lib/utils"
+import styles from "@/components/companion-refresh.module.css"
 
 type CompanionLayoutProps = {
   children: ReactNode
@@ -18,14 +19,14 @@ export function CompanionLayout({
   return (
     <div
       className={cn(
-        "grid h-dvh grid-cols-1 bg-background",
-        showSidebar && "lg:grid-cols-[minmax(0,1fr)_320px]",
+        styles.layout,
+        showSidebar && styles.withSidebar,
         className,
       )}
     >
-      <div className="min-h-0 min-w-0 flex flex-col">{children}</div>
+      <div className={styles.chatPanel}>{children}</div>
       {showSidebar && (
-        <aside className="hidden min-h-0 border-l bg-muted/20 lg:block">
+        <aside className={styles.sidebarPanel} aria-label="自助支持资源">
           {sidebar}
         </aside>
       )}

@@ -4,6 +4,9 @@ import { POST } from "../app/api/chat/route"
 import { consumeChatStream, parseSseDataLine, type ChatStreamContent } from "../lib/sse-chat"
 import { toChatApiMessages } from "../lib/chat-context"
 import { deepseekTimeoutMs, resolveDeepSeekClient } from "../lib/safety/deepseek-server"
+import { getCompanionChatPrompt } from "../lib/companion-chat-prompt"
+import { getGuestSystemPrompt } from "../lib/guest-agent"
+import { CONVERSATION_CONTINUITY_SYSTEM_NOTE, PROMPT_INJECTION_SYSTEM_NOTE } from "../lib/safety/constants"
 
 const encoder = new TextEncoder()
 const event = (data: unknown) => `data: ${JSON.stringify(data)}\n\n`
@@ -140,6 +143,10 @@ describe("DeepSeek route integration with a synthetic upstream", () => {
       expect(upstreamBody.model).toBe("deepseek-flash")
       expect(upstreamBody.thinking).toEqual({ type: "enabled" })
       expect(upstreamBody.reasoning_effort).toBe("high")
+      const messages = upstreamBody.messages as { role: string; content: string }[]
+      expect(messages[0]).toEqual({ role: "system", content: mode === "companion"
+        ? getCompanionChatPrompt("Hello")
+        : `${getGuestSystemPrompt("1")}\n\n${CONVERSATION_CONTINUITY_SYSTEM_NOTE}\n\n${PROMPT_INJECTION_SYSTEM_NOTE}` })
     })
   }
 

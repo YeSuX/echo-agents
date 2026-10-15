@@ -7,6 +7,7 @@
 - 产品说明、研究报告与实现计划等**统一使用 Markdown**（`.md`），便于版本管理与评审。
 - 仓库内主要文档示例：`plan.md`、`research.md`、`docs/safety-test-cases.md`（安全验收）、`docs/legal-manual-review-sop.md`（**法律顾问人工抽检 SOP**）；设计稿类说明可在 `docs/` 下维护。
 - **对话中的 AI 回复**在界面上按 **Markdown（GFM）** 渲染（列表、加粗、代码块、表格等）；流式生成过程中仍显示为纯文本，完成后切换为渲染结果，避免半段语法闪烁。
+- 普通同伴陪伴默认使用简短纯对话体；法律/SOP与危机固定话术保留原有规则。具体改动见 [提示词与产品反馈对应表](docs/prompt-feedback-mapping.md)。
 
 ## 包管理器：Bun
 
@@ -32,6 +33,7 @@ bun run test:legal-golden # 法律问句 golden 回归；live 需 DEEPSEEK_API_K
 | `bun run build:cloudflare` | OpenNext → Cloudflare 构建 |
 | `bun run preview` / `bun run deploy` | Cloudflare 预览 / 部署（需已配置 Wrangler） |
 | `bun run test:safety` | 安全护栏单元回归（见 `docs/safety-test-cases.md`） |
+| `bun run test:prompts` | 同伴表达层接入与原有法律/安全提示词保护测试 |
 | `bun run test:safety:e2e` | 安全护栏 E2E（需先 `bun run dev`） |
 | `bun run test:legal-golden` | 法律 Golden 自动回归（人工抽检 SOP：`docs/legal-manual-review-sop.md`） |
 

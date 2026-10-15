@@ -1,297 +1,101 @@
 "use client"
 
 import Link from "next/link"
-import Image from "next/image"
+import Image, { type StaticImageData } from "next/image"
+import { DESIGN_ASSETS } from "@/lib/design-assets"
 import {
-  AlertTriangleIcon,
-  ArrowRightIcon,
-  ChevronDownIcon,
-  ExternalLinkIcon,
-  HeartHandshakeIcon,
-  LockKeyholeIcon,
-  MessagesSquareIcon,
-  PhoneIcon,
-  ShieldCheckIcon,
+  ArrowRightIcon, ChevronDownIcon, EyeIcon,
+  FolderOpenIcon, HeartHandshakeIcon, LayersIcon, LockKeyholeIcon,
+  PhoneIcon, ExternalLinkIcon, ShieldCheckIcon, SparklesIcon,
 } from "lucide-react"
-
-import { Button } from "@/components/ui/button"
 import { AuthControls } from "@/components/auth-controls"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { SUPPORT_RESOURCES } from "@/data/support-resources"
+import { ANONYMOUS_CASES } from "@/data/cases"
 import { GUESTS } from "@/data/guests"
+import styles from "@/components/landing-contact-consent.module.css"
 
-const SAFE_EXIT_URL = "https://www.google.com"
+const VIOLENCE_TYPES = [
+  { title: "AI 深伪色情", description: "利用 AI 换脸等技术，未经同意将他人的形象合成为色情影像。虚假的影像，也会造成真实的伤害。", image: DESIGN_ASSETS.typeDeepfake },
+  { title: "未经同意传播", description: "擅自分享、转发或公开他人的私密影像。同意拍摄，从来不等于同意传播。", image: DESIGN_ASSETS.typeSharing },
+  { title: "偷拍", description: "在当事人不知情或未同意的情况下，拍摄、录制其私密部位或私密活动。", image: DESIGN_ASSETS.typeVoyeurism },
+]
+const CASE_IMAGES: Record<string, StaticImageData> = {
+  c4: DESIGN_ASSETS.caseDeepfake,
+  c5: DESIGN_ASSETS.caseCompensation,
+  c6: DESIGN_ASSETS.caseTakedown,
+}
 
 export function LandingContactConsent() {
   return (
-    <div className="flex min-h-[100dvh] w-full flex-col bg-background">
-      <header className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-5 sm:px-8">
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="小荧首页"
-        >
-          <Image
-            src="/logo.PNG"
-            alt=""
-            width={36}
-            height={36}
-            className="size-9 rounded-full object-cover"
-          />
-          <span className="font-semibold tracking-tight">小荧</span>
-        </Link>
-        <nav className="flex items-center gap-1" aria-label="辅助导航">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/privacy">隐私说明</Link>
-          </Button>
-          <Button variant="ghost" size="sm" asChild>
-            <a href="#support">支持资源</a>
-          </Button>
-          <AuthControls />
-        </nav>
-      </header>
-
-      <main className="mx-auto grid w-full max-w-6xl items-center gap-10 px-5 py-8 sm:px-8 lg:grid-cols-[1.08fr_0.92fr] lg:gap-16 lg:py-12">
-        <section aria-labelledby="welcome-heading" className="max-w-xl">
-          <div className="mb-6 flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <HeartHandshakeIcon className="size-6" aria-hidden="true" />
-          </div>
-          <h1
-            id="welcome-heading"
-            className="max-w-lg text-4xl font-semibold leading-[1.12] tracking-tight sm:text-5xl"
-          >
-            你不需要一个人处理这些
-          </h1>
-          <p className="mt-5 max-w-lg text-base leading-7 text-muted-foreground sm:text-lg">
-            小荧提供 AI 同伴对话、应对工具和可信支持资源。你可以少说一点，也可以随时停下。
-          </p>
-          <p className="mt-4 font-medium text-foreground">这不是你的错。</p>
-
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Button size="lg" className="h-12 px-6" asChild>
-              <Link href="/support">
-                寻求帮助
-                <ArrowRightIcon className="size-4" aria-hidden="true" />
-              </Link>
-            </Button>
-            <Button size="lg" variant="outline" className="h-12 px-6" asChild>
-              <Link href="/learn">先了解应对方法</Link>
-            </Button>
-          </div>
-
-          <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <LockKeyholeIcon className="size-4" aria-hidden="true" />
-              未登录时对话不保存
-            </span>
-            <a
-              href={SAFE_EXIT_URL}
-              className="rounded font-medium text-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              暂时离开此页
-            </a>
-          </div>
-        </section>
-
-        <section
-          className="overflow-hidden rounded-2xl border bg-card shadow-[0_18px_50px_-32px_oklch(0.32_0.08_315/0.28)]"
-          aria-label="安全说明"
-        >
-          <div className="border-b bg-primary/[0.035] p-5 sm:p-6">
-            <div className="flex items-start gap-3">
-              <ShieldCheckIcon
-                className="mt-0.5 size-5 shrink-0 text-primary"
-                aria-hidden="true"
-              />
-              <div>
-                <h2 className="font-semibold">先确认你的安全与选择</h2>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  对话由 AI 回应，不能替代律师、医生或紧急服务。你始终可以决定说什么、何时离开。
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-5 p-5 sm:p-6">
-            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
-              <AlertTriangleIcon
-                className="mt-0.5 size-4 shrink-0"
-                aria-hidden="true"
-              />
-              <div>
-                <h3 className="text-sm font-semibold">内容提醒</h3>
-                <p className="mt-1 text-sm leading-6 opacity-90">
-                  页面涉及性暴力和创伤主题，可能引发不适。感到不舒服时，请立即停下或使用下方资源。
-                </p>
-              </div>
-            </div>
-
-            <div id="support" className="scroll-mt-6">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h3 className="font-semibold">需要真人支持</h3>
-                <span className="text-xs text-muted-foreground">可直接拨打</span>
-              </div>
-              <ul className="space-y-2" role="list">
-                {SUPPORT_RESOURCES.slice(0, 3).map((item) => (
-                  <li key={item.label}>
-                    <a
-                      href={item.href}
-                      target={item.type === "link" ? "_blank" : undefined}
-                      rel={item.type === "link" ? "noopener noreferrer" : undefined}
-                      className="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      {item.type === "phone" ? (
-                        <PhoneIcon className="size-4 shrink-0 text-primary" />
-                      ) : (
-                        <ExternalLinkIcon className="size-4 shrink-0 text-primary" />
-                      )}
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-medium">{item.label}</span>
-                        {item.description && (
-                          <span className="block text-xs text-muted-foreground">
-                            {item.description}
-                          </span>
-                        )}
-                      </span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-              <Collapsible>
-                <CollapsibleTrigger className="mt-2 flex min-h-10 w-full items-center justify-between rounded-lg px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  查看更多支持资源
-                  <ChevronDownIcon className="size-4" aria-hidden="true" />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <ul className="mt-2 space-y-1" role="list">
-                    {SUPPORT_RESOURCES.slice(3).map((item) => (
-                      <li key={item.label}>
-                        <a
-                          href={item.href}
-                          target={item.type === "link" ? "_blank" : undefined}
-                          rel={item.type === "link" ? "noopener noreferrer" : undefined}
-                          className="block rounded-lg px-3 py-2 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                          <span className="font-medium">{item.label}</span>
-                          {item.description && (
-                            <span className="ml-2 text-xs text-muted-foreground">
-                              {item.description}
-                            </span>
-                          )}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </CollapsibleContent>
-              </Collapsible>
-            </div>
-
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="h-11 w-full justify-start">
-                  <LockKeyholeIcon className="size-4 text-primary" />
-                  查看数据与隐私承诺
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-h-[82vh] overflow-y-auto sm:max-w-lg">
-                <DialogHeader>
-                  <DialogTitle>你的信息由你决定</DialogTitle>
-                  <DialogDescription asChild>
-                    <div className="space-y-4 text-left text-sm leading-6">
-                      <p>未登录时，对话只在当前页面临时处理，不会写入云端记录。</p>
-                      <div>
-                        <p className="font-medium text-foreground">登录后默认开启云端同步</p>
-                        <p>登录用户的新消息会默认加密存储并用于跨设备恢复；登录前的临时消息不会自动上传。你可以在聊天页随时关闭同步。</p>
-                      </div>
-                      <div>
-                        <p className="font-medium text-foreground">用途受到限制</p>
-                        <p>对话记录只用于向你恢复历史和继续聊天，不用于广告画像；匿名故事投稿仍使用独立授权和脱敏流程。</p>
-                      </div>
-                      <div>
-                        <p className="font-medium text-foreground">你可以撤回</p>
-                        <p>你可以关闭未来保存，并在对话记录页删除单条或全部历史。</p>
-                      </div>
-                    </div>
-                  </DialogDescription>
-                </DialogHeader>
-                <Button variant="outline" asChild>
-                  <Link href="/privacy">阅读完整隐私说明</Link>
-                </Button>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </section>
-      </main>
-
-      <section
-        className="border-y border-border/70 bg-primary/[0.025]"
-        aria-labelledby="guest-stories-heading"
-      >
-        <div className="mx-auto grid w-full max-w-6xl gap-6 px-5 py-7 sm:px-8 sm:py-9 md:grid-cols-[0.9fr_1.1fr] md:items-center md:gap-10">
-          <div>
-            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-primary">
-              <MessagesSquareIcon className="size-4" aria-hidden="true" />
-              另一种了解方式
-            </div>
-            <h2
-              id="guest-stories-heading"
-              className="text-2xl font-semibold tracking-tight sm:text-3xl"
-            >
-              听听嘉宾愿意分享的故事
-            </h2>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
-              和不同经历的嘉宾对话，了解他们如何面对关系、舆论、司法程序与日常生活。
-            </p>
-            <Button variant="outline" className="mt-5" asChild>
-              <Link href="/guests">
-                查看全部嘉宾
-                <ArrowRightIcon className="size-4" aria-hidden="true" />
-              </Link>
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-4 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
-            <div className="flex shrink-0 -space-x-3" aria-hidden="true">
-              {GUESTS.slice(0, 4).map((guest) => (
-                <Image
-                  key={guest.id}
-                  src={guest.avatar}
-                  alt=""
-                  width={64}
-                  height={64}
-                  className="size-12 rounded-full border-2 border-card object-cover sm:size-14"
-                />
-              ))}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold">9 位嘉宾，9 种不同的经验</p>
-              <p className="mt-1 text-sm leading-5 text-muted-foreground">
-                所有姓名均为化名，可先浏览主题再决定是否进入对话。
-              </p>
-            </div>
+    <div className={styles.page}>
+      <a href="#understand" className={styles.skipLink}>跳至主要内容</a>
+      <section className={styles.hero} aria-labelledby="welcome-heading">
+        <Image src={DESIGN_ASSETS.hero} alt="" fill priority sizes="100vw" className={styles.heroImage} />
+        <div className={styles.heroOverlay} aria-hidden="true" />
+        <header className={styles.header}>
+          <Link href="/" className={styles.brand} aria-label="如荧首页"><SparklesIcon aria-hidden="true" /><span>如荧<span className={styles.brandNote}>反对影像性暴力</span></span></Link>
+          <nav className={styles.navigation} aria-label="主要导航"><Link href="/guests">嘉宾故事</Link><Link href="/privacy">隐私承诺</Link><a href="#support">支持资源</a><AuthControls compact /></nav>
+        </header>
+        <div className={styles.heroTitle}>
+          <p className={styles.eyebrow}>每一份感受，都值得被认真听见</p>
+          <h1 id="welcome-heading">如荧，反对影像性暴力</h1>
+          <p className={styles.slogan}>别让 AI 的恶，遮住你的光</p>
+        </div>
+        <div className={styles.invitation}>
+          <Image src={DESIGN_ASSETS.companion} alt="同伴支持者小荧" width={112} height={112} className={styles.companionAvatar} />
+          <div className={styles.invitationActions}>
+            <p className={styles.greeting}>受到伤害从来都不是你的错。<br className="sm:hidden" />我是 AI 同伴小荧，陪你一起。</p>
+            <Link href="/support" className={styles.chatLink}>你可以和我先聊聊天 <ArrowRightIcon size={18} aria-hidden="true" /></Link>
           </div>
         </div>
+        <div className={styles.heroFoot}><span><LockKeyholeIcon size={13} aria-hidden="true" />未登录时对话不保存</span><a href="https://www.google.com">暂时离开此页 <ExternalLinkIcon size={12} aria-hidden="true" /></a></div>
+        <a className={styles.scrollCue} href="#understand" aria-label="向下了解影像性暴力"><ChevronDownIcon aria-hidden="true" /></a>
       </section>
-
-      <footer className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-5 text-xs text-muted-foreground sm:px-8">
-        <span>公益支持工具，不提供紧急救援服务</span>
-        <nav className="flex items-center gap-4" aria-label="页脚导航">
-          <Link href="/stories" className="hover:text-foreground">案例</Link>
-          <Link href="/privacy" className="hover:text-foreground">隐私与数据</Link>
-        </nav>
-      </footer>
+      <main id="understand" className={styles.main}>
+        <section aria-labelledby="definition-heading">
+          <div className={styles.sectionHeading}><EyeIcon aria-hidden="true" /><h2 id="definition-heading">什么是影像性暴力？</h2></div>
+          <div className={styles.sectionBody}><p>未经同意，制作、获取、传播或威胁传播他人的私密影像。<br className="hidden sm:block" />核心是「未经同意」，无论影像真实还是合成，伤害都不该由你承担。</p><Link href="/learn" className={styles.textLink}>了解更多应对方法 <ArrowRightIcon size={16} aria-hidden="true" /></Link></div>
+        </section>
+        <section className={styles.contentSection} aria-labelledby="types-heading">
+          <div className={styles.sectionHeading}><LayersIcon aria-hidden="true" /><h2 id="types-heading">影像性暴力的常见类型</h2></div>
+          <div className={styles.threeColumns}>{VIOLENCE_TYPES.map(({ title, description, image }, index) => <article className={styles.typeCard} key={title}>
+            <div className={styles.illustration}><Image src={image} alt="" width={512} height={512} sizes="(max-width: 600px) 108px, 232px" /></div>
+            <h3><span className={styles.number}>0{index + 1}</span>{title}</h3><p>{description}</p>
+          </article>)}</div>
+          <Link href="/learn#types" className={styles.moreTypes}>还有性勒索、造黄谣等形式，了解完整说明 <ArrowRightIcon size={15} aria-hidden="true" /></Link>
+        </section>
+        <section className={styles.contentSection} aria-labelledby="cases-heading">
+          <div className={styles.sectionHeading}><FolderOpenIcon aria-hidden="true" /><h2 id="cases-heading">相关案例</h2></div><p className={styles.sectionIntro}>在这里，看到更多的力量</p>
+          <div className={styles.threeColumns}>{ANONYMOUS_CASES.slice(3, 6).map((item, index) => {
+            return <Link key={item.id} href={`/stories#${item.id}`} className={styles.caseCard}>
+              <div className={styles.caseIllustration}><Image src={CASE_IMAGES[item.id]} alt="" width={512} height={512} sizes="(max-width: 600px) 108px, 232px" /></div>
+              <div className={styles.caseTitle}><span className={styles.number}>0{index + 1}</span><h3>{item.title}</h3><ArrowRightIcon className={styles.roundArrow} aria-hidden="true" /></div><p>{item.outcomeNote}</p>
+            </Link>
+          })}</div><p className={styles.caseNote}>匿名案例摘要，细节已脱敏。每个人的情况不同，结果仅供了解。</p>
+        </section>
+        <section className={styles.guestSection} aria-labelledby="guest-stories-heading">
+          <div><p className={styles.smallLabel}>让故事陪你走一段</p><h2 id="guest-stories-heading">听听嘉宾愿意分享的故事</h2><p>九位嘉宾，九种不同的经验。<br />你可以先听听，也可以慢慢说。</p><Link href="/guests" className={styles.textLink}>认识全部 9 位嘉宾 <ArrowRightIcon size={16} aria-hidden="true" /></Link></div>
+          <Link href="/guests" className={styles.guestPreview} aria-label="浏览九位嘉宾的故事"><div className={styles.guestAvatars}>{GUESTS.slice(0, 4).map((guest) => <Image key={guest.id} src={guest.avatar} alt="" width={80} height={80} />)}</div><span>关于关系、复原与重新出发 <ArrowRightIcon size={16} aria-hidden="true" /></span><small>所有姓名均为化名</small></Link>
+        </section>
+        <section id="support" className={styles.supportSection} aria-labelledby="support-heading">
+          <div className={styles.sectionHeading}><HeartHandshakeIcon aria-hidden="true" /><h2 id="support-heading">需要时，也有人在这里</h2></div><p className={styles.sectionIntro}>如果此刻需要真人支持，可以从下面的资源开始。</p>
+          <ul className={styles.supportGrid} role="list">{SUPPORT_RESOURCES.slice(0, 3).map((item) => <li key={item.label}><a href={item.href} target={item.type === "link" ? "_blank" : undefined} rel={item.type === "link" ? "noopener noreferrer" : undefined}>{item.type === "phone" ? <PhoneIcon aria-hidden="true" /> : <ExternalLinkIcon aria-hidden="true" />}<span><strong>{item.label}</strong><small>{item.description}</small></span><ArrowRightIcon className="ml-auto" size={16} aria-hidden="true" /></a></li>)}</ul>
+          <Collapsible><CollapsibleTrigger className={styles.resourceTrigger}>查看更多支持资源 <ChevronDownIcon size={16} aria-hidden="true" /></CollapsibleTrigger><CollapsibleContent><ul className={styles.extraResources}>{SUPPORT_RESOURCES.slice(3).map((item) => <li key={item.label}><a href={item.href} target={item.type === "link" ? "_blank" : undefined} rel={item.type === "link" ? "noopener noreferrer" : undefined}><strong>{item.label}</strong><span>{item.description}</span><ExternalLinkIcon size={15} aria-hidden="true" /></a></li>)}</ul></CollapsibleContent></Collapsible>
+          <div className={styles.safetyNote}><ShieldCheckIcon size={19} aria-hidden="true" /><p>这里由 AI 提供陪伴，不能替代律师、医生或紧急服务。页面涉及性暴力与创伤主题，感到不适时，你可以随时停下。<strong> 说多少、何时离开，都由你决定。</strong></p></div>
+          <Dialog><DialogTrigger asChild><Button variant="ghost" className={styles.privacyTrigger}><LockKeyholeIcon size={16} />查看数据与隐私承诺</Button></DialogTrigger>
+            <DialogContent className="max-h-[82vh] overflow-y-auto sm:max-w-lg"><DialogHeader><DialogTitle>你的信息由你决定</DialogTitle><DialogDescription asChild><div className="space-y-4 text-left text-sm leading-6">
+              <p>未登录时，对话只在当前页面临时处理，不会写入云端记录。</p>
+              <div><p className="font-medium text-foreground">登录后默认开启云端同步</p><p>登录用户的新消息会默认加密存储并用于跨设备恢复；登录前的临时消息不会自动上传。你可以在聊天页随时关闭同步。</p></div>
+              <div><p className="font-medium text-foreground">用途受到限制</p><p>对话记录只用于向你恢复历史和继续聊天，不用于广告画像；匿名故事投稿仍使用独立授权和脱敏流程。</p></div>
+              <div><p className="font-medium text-foreground">你可以撤回</p><p>你可以关闭未来保存，并在对话记录页删除单条或全部历史。</p></div>
+            </div></DialogDescription></DialogHeader><Button variant="outline" asChild><Link href="/privacy">阅读完整隐私说明</Link></Button></DialogContent>
+          </Dialog>
+        </section>
+      </main>
+      <footer className={styles.footer}><Link href="/" className={styles.footerBrand}><SparklesIcon size={20} aria-hidden="true" />如荧</Link><p>一点微光，也可以照亮彼此。</p><nav aria-label="页脚导航"><Link href="/learn">科普</Link><Link href="/stories">匿名案例</Link><Link href="/privacy">隐私与数据</Link></nav></footer>
     </div>
   )
 }

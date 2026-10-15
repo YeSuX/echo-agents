@@ -36,7 +36,7 @@ export function ConversationSaveControl({
 
   if (isLoading) {
     return (
-      <Button variant="ghost" size="sm" disabled>
+      <Button variant="ghost" size="sm" disabled aria-label="读取保存设置">
         <LoaderCircleIcon className="size-4 animate-spin" />
         <span className="hidden sm:inline">读取保存设置</span>
       </Button>
@@ -46,7 +46,7 @@ export function ConversationSaveControl({
   if (!isSignedIn) {
     return (
       <SignInButton mode="modal">
-        <Button variant="ghost" size="sm">
+        <Button variant="ghost" size="sm" aria-label="登录后自动同步">
           <CloudOffIcon className="size-4" />
           <span className="hidden sm:inline">登录后自动同步</span>
         </Button>
@@ -71,7 +71,7 @@ export function ConversationSaveControl({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm">
+        <Button variant="ghost" size="sm" aria-label={historyEnabled ? "云端同步已开启" : "云端同步已关闭"}>
           {historyEnabled ? (
             <CloudIcon className="size-4 text-primary" />
           ) : (

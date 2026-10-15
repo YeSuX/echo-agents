@@ -1,4 +1,10 @@
+"use client"
+
+import { useId, useState } from "react"
+import { ChevronDownIcon } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
+import styles from "@/components/companion-refresh.module.css"
 
 type QuickRepliesProps = {
   replies: readonly string[]
@@ -11,24 +17,38 @@ export function QuickReplies({
   onPick,
   disabled,
 }: QuickRepliesProps) {
+  const [expanded, setExpanded] = useState(false)
+  const choicesId = useId()
+  const visibleReplies = expanded ? replies : replies.slice(0, 3)
+
   return (
-    <div
-      className="grid grid-cols-1 gap-2 sm:grid-cols-2"
-      role="group"
-      aria-label="选择一个常见问题开始"
-    >
-      {replies.map((q) => (
-        <Button
-          key={q}
+    <div>
+      <div id={choicesId} className={styles.quickReplies} role="group" aria-label="常见问题">
+        {visibleReplies.map((q) => (
+          <Button
+            key={q}
+            type="button"
+            variant="outline"
+            className={styles.quickReply}
+            disabled={disabled}
+            onClick={() => onPick(q)}
+          >
+            {q}
+          </Button>
+        ))}
+      </div>
+      {replies.length > 3 && (
+        <button
           type="button"
-          variant="outline"
-          className="h-auto min-h-12 justify-start whitespace-normal rounded-xl px-4 py-3 text-left text-sm font-normal leading-5 shadow-none"
-          disabled={disabled}
-          onClick={() => onPick(q)}
+          className={styles.moreReplies}
+          onClick={() => setExpanded((value) => !value)}
+          aria-expanded={expanded}
+          aria-controls={choicesId}
         >
-          {q}
-        </Button>
-      ))}
+          {expanded ? "收起问题" : "看看其他问题"}
+          <ChevronDownIcon className="size-3" style={{ transform: expanded ? "rotate(180deg)" : undefined }} />
+        </button>
+      )}
     </div>
   )
 }

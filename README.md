@@ -105,9 +105,11 @@ static-assets cache.
 | 路径 | 说明 |
 |------|------|
 | `/` | 落地页（知情同意、支持资源） |
+| `/about` | 关于我们与联络方式 |
+| `/assistance` | 影像性暴力科普、案例与个案援助 |
 | `/support` | 同伴对话 |
 | `/support/end` | 结束页与可选匿名分享 |
-| `/guests` / `/guests/[id]` | 嘉宾叙事对话（保留） |
+| `/guests` / `/guests/[id]` | AI 主题对话体验，尚未接入授权的完整故事 |
 | `/learn` / `/stories` | 科普与案例 |
 | `/privacy` | 隐私与对话存储说明 |
 | `/sign-in` / `/sign-up` | Clerk 登录与注册 |

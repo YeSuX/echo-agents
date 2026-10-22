@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
+import { DESIGN_ASSETS } from "@/lib/design-assets"
 import { ArrowLeftIcon, ExternalLinkIcon, PhoneIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -21,7 +22,7 @@ export function LeaveOrContinuePage() {
     <div className="flex min-h-dvh flex-col bg-background">
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-8">
         <Image
-          src="/logo.PNG"
+          src={DESIGN_ASSETS.companion}
           alt="小荧"
           width={128}
           height={128}
@@ -32,7 +33,7 @@ export function LeaveOrContinuePage() {
           <CardHeader className="text-center">
             <CardTitle>感谢你的停留</CardTitle>
             <CardDescription>
-              你可以随时返回嘉宾列表换一位听听，或关闭页面离开。若需要倾诉或帮助，下方有支持资源。
+              你可以随时返回嘉宾列表选择其他主题，或关闭页面离开。若需要倾诉或帮助，下方有支持资源。
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

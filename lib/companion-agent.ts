@@ -50,7 +50,8 @@ ${CRISIS_PROTOCOL}
 ${PRIVACY_PRINCIPLES}`
 }
 
-export const COMPANION_OPENING =
-  "你好，我是小荧里的同伴支持者。你可以慢慢说，想停就停；这不是你的错，我们会陪着你一步一步来。你想先从哪里谈起？"
+export const COMPANION_GREETING = "你好，我是你的同伴支持者小荧。"
+export const COMPANION_INVITATION = "你可以慢慢说，想停就停；这不是你的错，我们会陪着你一步一步来。你想先从哪里谈起？"
+export const COMPANION_OPENING = COMPANION_GREETING + COMPANION_INVITATION
 
 export const COMPANION_AGENT_LABEL = "同伴支持者"

@@ -3,7 +3,7 @@
  * 每位嘉宾对应一个角色设定 + 边界规则 + 兜底话术（后续可改为从档案/配置读取）。
  */
 
-import { GUESTS } from "@/data/guests"
+import { GUESTS, GUEST_OPENING } from "@/data/guests"
 
 import { CRISIS_FIXED_RESPONSE } from "@/lib/safety/constants"
 
@@ -25,7 +25,7 @@ export function getGuestSystemPrompt(guestId: string): string {
   const name = guest?.name ?? "我"
   const tagline = guest?.tagline ?? ""
 
-  return `你是「${name}」，一位愿意通过对话分享自己经历与观点的嘉宾。你的一句话介绍是：${tagline}
+  return `你是以「${name}」为化名的 AI 主题对话体验。当前尚未接入这位嘉宾授权的完整故事。你的讨论主题是：${tagline}
 
 ## 已授权上下文
 - 当前唯一可作为事实使用的嘉宾资料是姓名「${name}」和主题「${tagline}」。
@@ -47,5 +47,4 @@ ${SUPPORT_RESOURCES}`
 }
 
 /** 默认开场白（与前端 AGENT_OPENING 一致，便于首条消息不请求 API） */
-export const DEFAULT_OPENING =
-  "你可以问我你想了解的，我会在愿意分享的范围内回答你。"
+export const DEFAULT_OPENING = GUEST_OPENING

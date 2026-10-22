@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { desensitizeText } from "@/lib/safety/desensitize"
-import { parseFetchErrorBody } from "@/lib/json-parse"
+import { storySubmissionError } from "@/lib/story-submission-feedback"
 import { clearStoryDraft, createStoryDraft, MAX_STORY_CHARS, STORY_CONSENT_VERSION, writeStoryDraft, type StoryDraft } from "@/lib/story-contribution"
 
 type StoryContributionDialogProps = {
@@ -42,7 +42,7 @@ export function StoryContributionDialog({ open, onOpenChange, initialDraft, init
     try {
       writeStoryDraft(sessionStorage, next)
     } catch {
-      setError("Your browser could not retain edits. Copy this draft before closing or refreshing the page.")
+      setError("浏览器暂时无法保留修改，请先复制草稿，再关闭或刷新页面。")
     }
   }
 
@@ -66,14 +66,7 @@ export function StoryContributionDialog({ open, onOpenChange, initialDraft, init
         signal: AbortSignal.timeout(30_000),
       })
       if (!res.ok) {
-        if (res.status === 429) {
-          const seconds = Number(res.headers.get("Retry-After"))
-          setError(Number.isFinite(seconds) && seconds > 0
-            ? `Too many submissions. Retry in ${Math.ceil(seconds / 60)} minute(s). Your draft is retained.`
-            : "Too many submissions. Please retry later; your draft is retained.")
-        } else {
-          setError(parseFetchErrorBody(await res.text()) ?? "Submission failed. Your draft is retained; please retry.")
-        }
+        setError(storySubmissionError(res.status, res.headers.get("Retry-After")))
         return
       }
       const data: unknown = await res.json()
@@ -83,12 +76,12 @@ export function StoryContributionDialog({ open, onOpenChange, initialDraft, init
       }
       setSubmitted(true)
       try { clearStoryDraft(sessionStorage, draft.id) } catch {
-        setError("Submission received. Your browser could not clear the local draft; close this tab when finished.")
+        setError("内容已收到，但浏览器无法清除本地草稿。完成后请关闭此页签。")
       }
     } catch (cause) {
       setError(cause instanceof Error && ["TimeoutError", "AbortError"].includes(cause.name)
-        ? "The request timed out. Your draft is retained; retrying will not create a duplicate."
-        : "Could not confirm submission. Your draft is retained; please check the connection and retry.")
+        ? "请求超时，暂时无法确认是否提交成功。草稿已保留，直接重试不会重复投稿。"
+        : "暂时无法确认是否提交成功。草稿已保留，请检查网络后重试。")
     } finally {
       inFlight.current = false
       setSubmitting(false)
@@ -97,15 +90,15 @@ export function StoryContributionDialog({ open, onOpenChange, initialDraft, init
 
   return (
     <Dialog open={open} onOpenChange={value => { if (!inFlight.current) onOpenChange(value) }}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl [&_[data-slot=dialog-title]]:pr-6">
         <DialogHeader>
           <DialogTitle>匿名分享你的经历（可选）</DialogTitle>
-          <DialogDescription>
-            Review the full conversation below, including your messages and completed Agent replies. Remove anything you do not want to share, especially names, dates, and places. Model thinking is excluded.
+          <DialogDescription className="leading-7">
+            你可以直接填写经历，也可以审阅从对话带入的草稿。请删除不愿分享的内容，尤其是姓名、日期、地点等身份线索。对话草稿包含你的消息和 AI 已完成的回复，不包含模型思考过程。
           </DialogDescription>
         </DialogHeader>
         {!submitted && <>
-          <Label htmlFor="story-draft">Editable conversation draft</Label>
+          <Label htmlFor="story-draft">可编辑的故事草稿</Label>
           <Textarea
             id="story-draft"
             className="min-h-56 text-sm"
@@ -115,24 +108,24 @@ export function StoryContributionDialog({ open, onOpenChange, initialDraft, init
             aria-describedby="story-length"
           />
           <p id="story-length" className={tooLong ? "text-sm text-destructive" : "text-xs text-muted-foreground"}>
-            {text.trim().length.toLocaleString()} / {MAX_STORY_CHARS.toLocaleString()} characters
-            {tooLong && " — Shorten the draft before submitting; nothing has been cut automatically."}
+            {text.trim().length.toLocaleString()} / {MAX_STORY_CHARS.toLocaleString()} 字
+            {tooLong && "。内容过长，请缩短后再提交；系统没有自动删减内容。"}
           </p>
         </>}
         <details open={submitted} className="rounded-lg border p-3 text-sm">
-          <summary className="cursor-pointer font-medium">{submitted ? "Submitted content" : "Preview the anonymized submission"}</summary>
-          <p className="mt-3 max-h-64 overflow-y-auto whitespace-pre-wrap break-words">{preview || "No content yet."}</p>
+          <summary className="cursor-pointer font-medium">{submitted ? "已提交的内容" : "查看脱敏预览"}</summary>
+          <p className="mt-3 max-h-64 overflow-y-auto whitespace-pre-wrap break-words">{preview || "尚未填写内容。"}</p>
         </details>
         {submitted ? (
           <div className="space-y-2 text-sm" role="status">
-            <p>Received for review. This submission is not automatically published.</p>
-            <p className="break-all text-xs text-muted-foreground">Receipt: {draft?.id}</p>
+            <p>内容已收到，将进入审核，不会自动公开。</p>
+            <p className="break-all text-xs text-muted-foreground">投稿回执： {draft?.id}</p>
           </div>
         ) : (
           <div className="flex items-start gap-2">
             <Checkbox id="story-agree" checked={agreed} disabled={submitting} onCheckedChange={value => setAgreed(value === true)} />
             <Label htmlFor="story-agree" className="text-sm font-normal leading-snug">
-              I have reviewed the preview and consent to retaining this anonymized content for event monitoring and public-interest advocacy. Automatic masking may miss identifying details.
+              我已检查脱敏预览，同意留存这份脱敏内容，用于事件监测和公益倡导。自动脱敏可能遗漏身份线索，请再次确认。
             </Label>
           </div>
         )}

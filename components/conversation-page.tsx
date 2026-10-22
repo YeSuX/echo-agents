@@ -33,8 +33,9 @@ import { loadConversationHistory } from "@/lib/conversation-history"
 import { conversationToStoryDraft, createStoryDraft, writeStoryDraft } from "@/lib/story-contribution"
 import { useConversationPersistence } from "@/hooks/use-conversation-persistence"
 
-const AGENT_OPENING =
-  "你可以问我你想了解的，我会在愿意分享的范围内回答你。"
+import { GUEST_OPENING } from "@/data/guests"
+
+const AGENT_OPENING = GUEST_OPENING
 
 export type MessageRole = "agent" | "user"
 export type ConversationMessage = {
@@ -286,7 +287,7 @@ export function ConversationPage({
             </Link>
           </Button>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-medium">与「{guestName}」对话</p>
+            <p className="truncate font-medium">与「{guestName}」体验主题对话</p>
             <p className="truncate text-xs text-muted-foreground">
               <Link href="/learn" className="underline-offset-2 hover:underline">
                 科普

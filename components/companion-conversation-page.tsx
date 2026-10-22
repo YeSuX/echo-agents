@@ -32,7 +32,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { COMPANION_AGENT_LABEL, COMPANION_OPENING } from "@/lib/companion-agent"
+import { COMPANION_AGENT_LABEL, COMPANION_GREETING, COMPANION_INVITATION, COMPANION_OPENING } from "@/lib/companion-agent"
 import { COMPANION_QUICK_REPLIES } from "@/data/quick-replies"
 import { SELF_HELP_CATALOG } from "@/data/self-help-catalog"
 import {
@@ -315,8 +315,8 @@ export function CompanionConversationPage({
     <div className={styles.chatColumn}>
       <header className={styles.chatHeader}>
         <div className={styles.brandRow}>
-          <Link href="/" className={styles.brand} aria-label="如荧，返回首页">
-            <span className={styles.brandTitle}>如荧 <span>· 反对影像性暴力</span></span>
+          <Link href="/" className={styles.brand} aria-label="如荧RAYIN，返回首页">
+            <span className={styles.brandTitle}>如荧RAYIN<span>反对影像性暴力</span></span>
             <span className={styles.brandSubtitle}>{COMPANION_AGENT_LABEL}小荧</span>
           </Link>
           <Button variant="ghost" size="icon" className={styles.backButton} asChild>
@@ -388,8 +388,8 @@ export function CompanionConversationPage({
                 priority
                 className={styles.welcomeAvatar}
               />
-              <h1 id="welcome-heading">你不用独自面对黑夜，我会陪你走过</h1>
-              <p>{COMPANION_OPENING}</p>
+              <h1 id="welcome-heading">{COMPANION_GREETING}</h1>
+              <p>{COMPANION_INVITATION}</p>
             </section>
           ) : (
             <div className={styles.messages}>

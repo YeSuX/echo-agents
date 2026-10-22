@@ -3,11 +3,11 @@
 import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { DESIGN_ASSETS } from "@/lib/design-assets"
+import { SiteBrand } from "@/components/site-brand"
 import { useRouter } from "next/navigation"
 import { ArrowRightIcon, HeartHandshakeIcon } from "lucide-react"
 
-import { GUESTS, type GuestId } from "@/data/guests"
+import { GUESTS, GUEST_EXPERIENCE_NOTICE, type GuestId } from "@/data/guests"
 import { SupportResourcesDropdown } from "@/components/support-resources-dropdown"
 import { Button } from "@/components/ui/button"
 import {
@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog"
 import styles from "./guest-select-content.module.css"
 
-const TOPICS = ["全部故事", "关系与沟通", "面对伤害", "生活与复原"] as const
+const TOPICS = ["全部主题", "关系与沟通", "面对伤害", "生活与复原"] as const
 type Topic = (typeof TOPICS)[number]
 
 // These labels summarize the existing introductions; they do not add story details.
@@ -61,7 +61,7 @@ function TriggerWarningDialog({
         <DialogHeader>
           <DialogTitle>进入对话前</DialogTitle>
           <DialogDescription className="pt-2 leading-7">
-            对话内容基于嘉宾授权分享的经历与观点，可能涉及敏感话题。若您感到不适，可随时离开或使用「支持资源」。
+            {GUEST_EXPERIENCE_NOTICE} 对话可能涉及敏感话题，感到不适时可随时离开或使用「支持资源」。
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2 sm:gap-2">
@@ -76,7 +76,7 @@ function TriggerWarningDialog({
 }
 
 export function GuestSelectContent() {
-  const [topic, setTopic] = useState<Topic>("全部故事")
+  const [topic, setTopic] = useState<Topic>("全部主题")
   const [dialogState, setDialogState] = useState<{
     open: boolean
     guestId: string
@@ -84,22 +84,19 @@ export function GuestSelectContent() {
   }>({ open: false, guestId: "", guestName: "" })
 
   const visibleGuests = GUESTS.filter(
-    (guest) => topic === "全部故事" || GUEST_TOPICS[guest.id].category === topic
+    (guest) => topic === "全部主题" || GUEST_TOPICS[guest.id].category === topic
   )
 
   return (
     <div className={styles.page}>
-      <a className={styles.skipLink} href="#guest-stories">跳至嘉宾故事</a>
+      <a className={styles.skipLink} href="#guest-stories">跳至嘉宾对话</a>
       <header className={styles.header}>
         <div className={styles.headerInner}>
-          <Link href="/" aria-label="如荧，返回首页" className={styles.brand}>
-            <Image src={DESIGN_ASSETS.companion} alt="" width={40} height={40} priority />
-            <span>如荧</span>
-          </Link>
+          <SiteBrand className={styles.brand} />
           <nav aria-label="主导航" className={styles.navigation}>
             <Link href="/">首页</Link>
             <Link href="/support">和小荧聊聊</Link>
-            <Link href="/guests" aria-current="page">嘉宾故事</Link>
+            <Link href="/guests" aria-current="page">嘉宾对话</Link>
           </nav>
           <div className={styles.support}><SupportResourcesDropdown /></div>
         </div>
@@ -108,16 +105,15 @@ export function GuestSelectContent() {
       <main id="guest-stories">
         <section className={styles.banner} aria-labelledby="stories-heading">
           <p className={styles.eyebrow}>每一种感受，都值得被听见</p>
-          <h1 id="stories-heading">倾听 <span>{GUESTS.length} 位嘉宾</span>相似的故事</h1>
+          <h1 id="stories-heading">选择 <span>{GUESTS.length} 个主题</span>，体验对话</h1>
           <p className={styles.introduction}>
-            九位匿名分享者，把自己走过的一段路留在了这里。<br />
-            你可以先听他们的故事，也可以继续向下走。
+            {GUEST_EXPERIENCE_NOTICE}
           </p>
         </section>
 
         <section className={styles.content} aria-label="选择一位嘉宾">
           <div className={styles.filterBar}>
-            <div className={styles.filters} role="group" aria-label="按故事主题筛选">
+            <div className={styles.filters} role="group" aria-label="按对话主题筛选">
               {TOPICS.map((item) => (
                 <button
                   key={item}
@@ -131,7 +127,7 @@ export function GuestSelectContent() {
               ))}
             </div>
             <p className={styles.resultCount} role="status" aria-live="polite">
-              {visibleGuests.length} 位嘉宾
+              {visibleGuests.length} 个主题
             </p>
           </div>
 
@@ -178,7 +174,7 @@ export function GuestSelectContent() {
       </main>
 
       <footer className={styles.footer}>
-        <p>如荧 · 让每一份微光，都被温柔看见</p>
+        <p>如荧RAYIN · 让每一份微光，都被温柔看见</p>
         <nav aria-label="页脚导航">
           <Link href="/">返回首页</Link>
           <Link href="/#support">支持资源</Link>

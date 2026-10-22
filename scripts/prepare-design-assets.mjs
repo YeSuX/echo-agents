@@ -13,6 +13,8 @@ const illustrations = [
   "case-deepfake", "case-compensation", "case-takedown",
 ]
 const assets = [
+  { source: "supplied/support-illustration.jpg", output: "optimized/support-illustration.webp", width: 1703 },
+  { source: "supplied/companion-white-sweater.png", output: "optimized/companion-white-sweater.webp", width: 512 },
   { source: "generated/home-hero-v2.png", output: "optimized/home-hero-v2.webp", width: 1672 },
   { source: "generated/story-envelope-v1.png", output: "optimized/story-envelope-v1.webp", width: 640 },
   { source: "../logo.PNG", output: "optimized/companion-avatar.webp", width: 512 },

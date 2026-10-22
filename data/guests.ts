@@ -60,3 +60,7 @@ export const GUESTS = [
 ] as const
 
 export type GuestId = (typeof GUESTS)[number]["id"]
+
+export const GUEST_EXPERIENCE_NOTICE = "当前为 AI 主题对话体验，尚未接入嘉宾授权的完整故事。化名与主题不代表已核实的个人经历；匿名投稿不会自动成为嘉宾故事。"
+
+export const GUEST_OPENING = "你好，这里是 AI 主题对话体验，目前还没有接入嘉宾授权的完整故事。我们可以围绕页面上的主题聊聊，但我不会补写个人经历。"

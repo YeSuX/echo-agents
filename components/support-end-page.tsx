@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image"
+import { DESIGN_ASSETS } from "@/lib/design-assets"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
@@ -34,7 +35,7 @@ export function SupportEndPage() {
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-5 py-10 sm:px-8">
         <div className="rounded-2xl border bg-background p-6 shadow-[0_18px_50px_-36px_oklch(0.32_0.08_315/0.3)] sm:p-8">
           <Image
-            src="/logo.PNG"
+            src={DESIGN_ASSETS.companion}
             alt=""
             width={56}
             height={56}
@@ -81,7 +82,7 @@ export function SupportEndPage() {
                       try { setDraft(readStoryDraft(sessionStorage)) }
                       catch {
                         setDraft(createStoryDraft())
-                        setDraftError("The browser could not read your draft. You can paste the text you want to share.")
+                        setDraftError("浏览器暂时无法读取草稿，你可以粘贴想分享的内容。")
                       }
                       setStoryOpen(true)
                     }}

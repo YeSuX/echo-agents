@@ -24,6 +24,7 @@
 .brand { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .brandTitle { color: #62439b; font-size: 26px; font-weight: 700; letter-spacing: .025em; line-height: 1.35; }
 .brandTitle > span { font-size: 19px; font-weight: 600; }
+.brandTitle > span::before { content: ' · '; }
 .brandSubtitle { color: #9984b4; font-size: 14px; letter-spacing: .1em; }
 .backButton { color: #a093ad; }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 2px; margin-top: 9px; color: #85748f; }
@@ -65,7 +66,7 @@
 .keyboardHint { color: #82718e; }
 
 .selfHelp { position: relative; display: flex; height: 100%; min-height: 0; flex-direction: column; isolation: isolate; overflow: hidden; background: #8d7d9b; color: #fff; }
-.selfHelp::before { position: absolute; z-index: -2; inset: 0; background: url('../public/design/optimized/rose.webp') no-repeat center / cover; content: ''; }
+.selfHelp::before { position: absolute; z-index: -2; inset: 0; background: url('../public/design/optimized/support-illustration.webp') no-repeat 35% center / cover; content: ''; }
 .selfHelp::after { position: absolute; z-index: -1; inset: 0; background: linear-gradient(160deg, #42305499, #382644ad); content: ''; }
 .resourceNav { display: flex; flex-shrink: 0; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; padding: 32px 28px 20px; color: #faf7ff; }
 .resourceNav > a { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; }
@@ -124,7 +125,8 @@
 @media (max-width: 639px) {
   .chatHeader { padding: 18px 17px 7px; }
   .brandTitle { font-size: 23px; }
-  .brandTitle > span { font-size: 15px; }
+  .brandTitle > span { display: block; margin-top: 4px; font-size: 14px; }
+  .brandTitle > span::before { content: none; }
   .brandSubtitle { font-size: 12px; }
   .toolbar { margin-top: 9px; gap: 0; }
   .toolbar :global(button), .toolbar > :global(a) { padding-left: 8px; padding-right: 8px; }

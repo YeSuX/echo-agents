@@ -1,5 +1,13 @@
 # UI refresh
 
+## Public-test feedback (2026-10-22)
+
+Home now uses the supplied illustration, a shared white-sweater avatar and the `如荧RAYIN` wordmark. The avatar source was recovered from `e48dc5c^:public/logo.PNG`; both new source assets live in `public/design/supplied/`, and `bun run assets:design` regenerates their WebP files. Prior artwork is retained.
+
+New `/about` and `/assistance` routes contain organization information and the existing education/case content plus support entry points. Home adds service FAQs and a truthful partner empty state. `data/organization.ts` is the replacement point for final FAQs, confirmed social account URLs and approved partner logos. Pending organizations from the supplied introduction are deliberately absent from the public partner list. Story submission UI is Chinese without changing consent purposes or the submission contract. Guest UI and prompts explicitly identify the current topic experience; interview reference materials are not imported or treated as authorized stories.
+
+See [public-feedback-loop-state.md](public-feedback-loop-state.md) for exact validation, pending content and review boundaries. Historical sections below describe earlier versions.
+
 ## Homepage concept follow-up (2026-10-13)
 
 The homepage now follows [Figma 206:89](https://www.figma.com/design/kS71785BD8Bj6wnh4tI0A7/?node-id=206-89): a lavender/peach backlit portrait on the left, safety and support contacts on the right, and guest stories with a voluntary sharing card below. Mobile stacks the safety card below the introduction. Existing educational content and case links remain further down the page. The story button reuses the existing draft, review and consent dialog without changing submission behavior.

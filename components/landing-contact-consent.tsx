@@ -2,12 +2,12 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import Image, { type StaticImageData } from "next/image"
+import Image from "next/image"
 import { DESIGN_ASSETS } from "@/lib/design-assets"
 import {
-  ArrowRightIcon, ChevronDownIcon, EyeIcon, MessageSquareIcon, TriangleAlertIcon,
-  FolderOpenIcon, HeartHandshakeIcon, LayersIcon, LockKeyholeIcon,
-  PhoneIcon, ExternalLinkIcon, ShieldCheckIcon, SparklesIcon,
+  ArrowRightIcon, ChevronDownIcon, MessageSquareIcon, TriangleAlertIcon,
+  HeartHandshakeIcon, LockKeyholeIcon,
+  PhoneIcon, ExternalLinkIcon, ShieldCheckIcon,
 } from "lucide-react"
 import { StoryContributionDialog } from "@/components/story-contribution-dialog"
 import { readStoryDraft, createStoryDraft, type StoryDraft } from "@/lib/story-contribution"
@@ -16,20 +16,12 @@ import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { SUPPORT_RESOURCES } from "@/data/support-resources"
-import { ANONYMOUS_CASES } from "@/data/cases"
-import { GUESTS } from "@/data/guests"
+import { HOME_FAQS, PARTNERS } from "@/data/organization"
+import { SiteBrand } from "@/components/site-brand"
+import { OrganizationFooter } from "@/components/organization-footer"
+import { GUESTS, GUEST_EXPERIENCE_NOTICE } from "@/data/guests"
 import styles from "@/components/landing-contact-consent.module.css"
 
-const VIOLENCE_TYPES = [
-  { title: "AI 深伪色情", description: "利用 AI 换脸等技术，未经同意将他人的形象合成为色情影像。虚假的影像，也会造成真实的伤害。", image: DESIGN_ASSETS.typeDeepfake },
-  { title: "未经同意传播", description: "擅自分享、转发或公开他人的私密影像。同意拍摄，从来不等于同意传播。", image: DESIGN_ASSETS.typeSharing },
-  { title: "偷拍", description: "在当事人不知情或未同意的情况下，拍摄、录制其私密部位或私密活动。", image: DESIGN_ASSETS.typeVoyeurism },
-]
-const CASE_IMAGES: Record<string, StaticImageData> = {
-  c4: DESIGN_ASSETS.caseDeepfake,
-  c5: DESIGN_ASSETS.caseCompensation,
-  c6: DESIGN_ASSETS.caseTakedown,
-}
 
 export function LandingContactConsent() {
   const [storyOpen, setStoryOpen] = useState(false)
@@ -51,12 +43,11 @@ export function LandingContactConsent() {
     <div className={styles.page}>
       <a href="#welcome-heading" className={styles.skipLink}>跳至主要内容</a>
       <header className={styles.header}>
-        <Link href="/" className={styles.brand} aria-label="如荧首页">
-          <SparklesIcon aria-hidden="true" />
-          <span>如荧<span className={styles.brandNote}>反对影像性暴力</span></span>
-        </Link>
+        <SiteBrand className={styles.brand} />
         <nav className={styles.navigation} aria-label="主要导航">
-          <Link href="/guests">嘉宾故事</Link>
+          <Link href="/about">关于我们</Link>
+          <Link href="/assistance">个案援助</Link>
+          <Link href="/guests">嘉宾对话</Link>
           <Link href="/privacy">隐私承诺</Link>
           <a href="#support">支持资源</a>
           <AuthControls compact />
@@ -90,14 +81,13 @@ export function LandingContactConsent() {
 
         <section className={styles.storiesSection} aria-labelledby="guest-stories-heading">
           <div className={styles.storiesContent}>
-            <p className={styles.smallLabel}><MessageSquareIcon size={17} aria-hidden="true" />她们的故事</p>
-            <h2 id="guest-stories-heading">听听嘉宾愿意分享的故事</h2>
-            <p className={styles.storiesIntro}>不同经历的她们，面对关系、舆论与复原时会有不同的选择。<br className={styles.desktopBreak} />希望她们的声音，能带给你一点力量。</p>
+            <p className={styles.smallLabel}><MessageSquareIcon size={17} aria-hidden="true" />嘉宾对话</p>
+            <h2 id="guest-stories-heading">从你在意的话题开始</h2>
+            <p className={styles.storiesIntro}>{GUEST_EXPERIENCE_NOTICE}</p>
             <div className={styles.storyPreviews}>
-              <Link href="/guests" className={styles.browseStories}>查看全部故事 <ArrowRightIcon size={15} aria-hidden="true" /></Link>
+              <Link href="/guests" className={styles.browseStories}>查看对话主题 <ArrowRightIcon size={15} aria-hidden="true" /></Link>
               {GUESTS.slice(0, 3).map((guest) => (
                 <article className={styles.guestCard} key={guest.id}>
-                  <span className={styles.quoteMark} aria-hidden="true">“</span>
                   <p>{guest.tagline}</p>
                   <div><Image src={guest.avatar} alt="" width={28} height={28} /><span>{guest.name}<small>化名</small></span></div>
                 </article>
@@ -107,39 +97,50 @@ export function LandingContactConsent() {
           <aside className={styles.shareCard} aria-labelledby="share-heading">
             <Image src={DESIGN_ASSETS.storyEnvelope} alt="" width={640} height={640} sizes="(max-width: 600px) 190px, (max-width: 900px) 265px, 220px" className={styles.shareArtwork} />
             <div className={styles.shareCopy}>
-              <h3 id="share-heading">分享你的故事<br />让改变发生</h3>
-              <p>你的经历，可能正在帮助另一个<br />需要一点光的人。</p>
+              <h3 id="share-heading">留下你的故事<br />按照自己的节奏</h3>
+              <p>你可以选择想分享的部分。<br />提交后进入审核，不会自动公开。</p>
               <button type="button" className={styles.primaryLink} onClick={openStory}>留下我的故事 <ArrowRightIcon size={15} aria-hidden="true" /></button>
               <small>分享完全自愿，提交前可审阅与修改</small>
             </div>
           </aside>
         </section>
 
-        <div id="understand" className={styles.main}>
-        <section aria-labelledby="definition-heading">
-          <div className={styles.sectionHeading}><EyeIcon aria-hidden="true" /><h2 id="definition-heading">什么是影像性暴力？</h2></div>
-          <div className={styles.sectionBody}><p>未经同意，制作、获取、传播或威胁传播他人的私密影像。<br className="hidden sm:block" />核心是「未经同意」，无论影像真实还是合成，伤害都不该由你承担。</p><Link href="/learn" className={styles.textLink}>了解更多应对方法 <ArrowRightIcon size={16} aria-hidden="true" /></Link></div>
-        </section>
-        <section className={styles.contentSection} aria-labelledby="types-heading">
-          <div className={styles.sectionHeading}><LayersIcon aria-hidden="true" /><h2 id="types-heading">影像性暴力的常见类型</h2></div>
-          <div className={styles.threeColumns}>{VIOLENCE_TYPES.map(({ title, description, image }, index) => <article className={styles.typeCard} key={title}>
-            <div className={styles.illustration}><Image src={image} alt="" width={512} height={512} sizes="(max-width: 600px) 108px, 232px" /></div>
-            <h3><span className={styles.number}>0{index + 1}</span>{title}</h3><p>{description}</p>
-          </article>)}</div>
-          <Link href="/learn#types" className={styles.moreTypes}>还有性勒索、造黄谣等形式，了解完整说明 <ArrowRightIcon size={15} aria-hidden="true" /></Link>
-        </section>
-        <section className={styles.contentSection} aria-labelledby="cases-heading">
-          <div className={styles.sectionHeading}><FolderOpenIcon aria-hidden="true" /><h2 id="cases-heading">相关案例</h2></div><p className={styles.sectionIntro}>在这里，看到更多的力量</p>
-          <div className={styles.threeColumns}>{ANONYMOUS_CASES.slice(3, 6).map((item, index) => {
-            return <Link key={item.id} href={`/stories#${item.id}`} className={styles.caseCard}>
-              <div className={styles.caseIllustration}><Image src={CASE_IMAGES[item.id]} alt="" width={512} height={512} sizes="(max-width: 600px) 108px, 232px" /></div>
-              <div className={styles.caseTitle}><span className={styles.number}>0{index + 1}</span><h3>{item.title}</h3><ArrowRightIcon className={styles.roundArrow} aria-hidden="true" /></div><p>{item.outcomeNote}</p>
-            </Link>
-          })}</div><p className={styles.caseNote}>匿名案例摘要，细节已脱敏。每个人的情况不同，结果仅供了解。</p>
-        </section>
+        <div className={styles.homeInformation}>
+          <section id="understand" className={styles.assistanceEntry} aria-labelledby="assistance-heading">
+            <HeartHandshakeIcon size={30} aria-hidden="true" />
+            <div>
+              <h2 id="assistance-heading">了解处境，找到适合你的帮助</h2>
+              <p>什么是影像性暴力？可以怎样求助？在个案援助中了解常见类型、匿名案例与真人支援方式。</p>
+              <Link href="/assistance" className={styles.textLink}>查看个案援助 <ArrowRightIcon size={16} aria-hidden="true" /></Link>
+            </div>
+          </section>
+          <section className={styles.faqSection} aria-labelledby="faq-heading">
+            <h2 id="faq-heading">常见问题一览</h2>
+            <div className={styles.faqList}>
+              {HOME_FAQS.map(({ question, answer }) => (
+                <details key={question}>
+                  <summary>{question}<ChevronDownIcon size={18} aria-hidden="true" /></summary>
+                  <p>{answer}</p>
+                </details>
+              ))}
+            </div>
+          </section>
+          <section className={styles.partnersSection} aria-labelledby="partners-heading">
+            <h2 id="partners-heading">合作机构</h2>
+            {PARTNERS.length > 0 ? (
+              <ul className={styles.partnerLogos} aria-label="已确认的合作机构">
+                {PARTNERS.map((partner) => (
+                  <li key={partner.name}>
+                    {partner.href ? <a href={partner.href} target="_blank" rel="noopener noreferrer"><Image src={partner.logoSrc} alt={partner.name} width={160} height={64} /></a> : <Image src={partner.logoSrc} alt={partner.name} width={160} height={64} />}
+                  </li>
+                ))}
+              </ul>
+            ) : <p>我们正在与关注影像性暴力的机构建立联系。确认合作后，将在这里介绍。</p>}
+            <Link href="/about#contact-heading" className={styles.textLink}>与我们联系 <ArrowRightIcon size={16} aria-hidden="true" /></Link>
+          </section>
         </div>
       </main>
-      <footer className={styles.footer}><Link href="/" className={styles.footerBrand}><SparklesIcon size={20} aria-hidden="true" />如荧</Link><p>一点微光，也可以照亮彼此。</p><nav aria-label="页脚导航"><Link href="/learn">科普</Link><Link href="/stories">匿名案例</Link><Link href="/privacy">隐私与数据</Link></nav></footer>
+      <OrganizationFooter />
       <StoryContributionDialog open={storyOpen} onOpenChange={setStoryOpen} initialDraft={draft} initialError={draftError} />
     </div>
   )

@@ -12,12 +12,12 @@ import {
   type EncryptedTurnRecord,
 } from "@/lib/db/conversation-repository"
 import { getDb } from "@/lib/db/d1"
-import { getCompanionChatPrompt } from "@/lib/companion-chat-prompt"
-import { getGuestSystemPrompt } from "@/lib/guest-agent"
+import { getChatSystemPrompt } from "@/lib/companion-chat-prompt"
+import { getGuestProfile } from "@/data/guests"
 import { isJsonRecord, parseJson, type Json } from "@/lib/json-parse"
 import { getSelfHelpEntryById } from "@/data/self-help-catalog"
 import { detectIntent, selfHelpIdsForIntents } from "@/lib/intent-detect"
-import { conversationHasCrisis } from "@/lib/safety/crisis"
+import { assessConversationSafety } from "@/lib/safety/crisis"
 import { checkGuestResponse } from "@/lib/safety/guest-boundary"
 import {
   deepseekChatOptions,
@@ -45,9 +45,8 @@ import {
   sseResponseHeaders,
 } from "@/lib/safety/sse-response"
 import {
-  PROMPT_INJECTION_SYSTEM_NOTE,
-  CONVERSATION_CONTINUITY_SYSTEM_NOTE,
   CRISIS_FIXED_RESPONSE,
+  CRISIS_CHECK_IN_RESPONSE,
   UPSTREAM_ERROR_MESSAGE,
   UPSTREAM_TIMEOUT_MESSAGE,
 } from "@/lib/safety/constants"
@@ -65,6 +64,9 @@ type ChatRole = "user" | "assistant"
 type ChatMessage = { role: ChatRole; content: string }
 
 type ChatMode = "companion" | "guest"
+
+// Buffer both upstream channels within a bounded amount of Worker memory.
+const MAX_BUFFERED_OUTPUT_CHARS = 128_000
 
 type SavedTurnPersistence = {
   complete(finalContent: string): Promise<boolean>
@@ -175,7 +177,7 @@ function parseChatRequest(
   } else {
     mode = guestId.length > 0 ? "guest" : "companion"
   }
-  if (mode === "guest" && guestId.length === 0) return null
+  if (mode === "guest" && !getGuestProfile(guestId)) return null
   return { mode, guestId, messages }
 }
 
@@ -216,6 +218,9 @@ async function parseSavedChatRequest(
     return jsonErrorResponse("Conversation not found", 404, {
       code: "CONVERSATION_NOT_FOUND",
     })
+  }
+  if (conversation.mode === "guest" && !getGuestProfile(conversation.guestId ?? "")) {
+    return jsonErrorResponse("Guest profile is unavailable", 409, { code: "INVALID_CONTEXT" })
   }
 
   const keyring = conversationKeyringFromEnv()
@@ -380,7 +385,6 @@ async function streamDeepSeekWithModeration(
 
   let rawAssistant = ""
   let rawReasoning = ""
-  let reasoningBlocked = false
   let finishReason: string | null = null
   for await (const chunk of stream) {
     if (abort.aborted) throw new Error("timeout")
@@ -389,21 +393,15 @@ async function streamDeepSeekWithModeration(
     const reasoning = upstreamDelta && "reasoning_content" in upstreamDelta
       ? upstreamDelta.reasoning_content
       : undefined
-    if (typeof reasoning === "string" && reasoning && !reasoningBlocked) {
+    if (typeof reasoning === "string" && reasoning) {
       rawReasoning += reasoning
-      // Apply the existing output boundaries to the separate display channel too.
-      reasoningBlocked = mode === "guest"
-        ? checkGuestResponse(guestId, lastUser, rawReasoning).flagged
-        : moderateAssistantOutput(rawReasoning, mode).severity === "block"
-      controller.enqueue(encodeSseData({
-        type: reasoningBlocked ? "reasoning_replace" : "reasoning",
-        content: reasoningBlocked ? "" : reasoning,
-      }))
     }
     const delta = upstreamDelta?.content
     if (typeof delta === "string" && delta) {
       rawAssistant += delta
-      controller.enqueue(encodeSseData({ content: delta }))
+    }
+    if (rawReasoning.length + rawAssistant.length > MAX_BUFFERED_OUTPUT_CHARS) {
+      throw new Error("Upstream answer exceeds buffer limit")
     }
   }
 
@@ -433,12 +431,15 @@ async function streamDeepSeekWithModeration(
     finalContent = "（没有收到回复，请重试。）"
   }
 
-  if (finalContent !== rawAssistant) {
-    controller.enqueue(encodeSseData({ type: "reasoning_replace", content: "" }))
-    controller.enqueue(
-      encodeSseData({ type: "content_replace", content: finalContent }),
-    )
+  // Nothing from either model channel is visible until the complete answer passes review.
+  if (abort.aborted) throw new Error("timeout")
+  const reasoningBlocked = mode === "guest"
+    ? checkGuestResponse(guestId, lastUser, rawReasoning).flagged
+    : moderateAssistantOutput(rawReasoning, mode).severity === "block"
+  if (!moderationBlocked && !guestBoundaryBlocked && !reasoningBlocked && rawReasoning) {
+    controller.enqueue(encodeSseData({ type: "reasoning", content: rawReasoning }))
   }
+  controller.enqueue(encodeSseData({ content: finalContent }))
 
   if (savedTurn) {
     let persisted = false
@@ -526,11 +527,13 @@ export async function POST(req: NextRequest) {
     const routingContext = recentUserContext(messages)
     const injectionDetected = userMessagesInjectionDetected(messages)
 
-    if (conversationHasCrisis(messages)) {
+    const safety = assessConversationSafety(messages)
+    if (safety.level !== "none") {
+      const safetyResponse = safety.level === "urgent" ? CRISIS_FIXED_RESPONSE : CRISIS_CHECK_IN_RESPONSE
       if (savedTurn) {
         let persisted = false
         try {
-          persisted = await savedTurn.complete(CRISIS_FIXED_RESPONSE)
+          persisted = await savedTurn.complete(safetyResponse)
         } catch (error) {
           logSafeError("chat/persistence", error, { phase: "crisis_complete" })
         }
@@ -541,7 +544,7 @@ export async function POST(req: NextRequest) {
             })
           })
           return new Response(
-            createPersistenceErrorStream(CRISIS_FIXED_RESPONSE),
+            createPersistenceErrorStream(safetyResponse),
             { headers: sseResponseHeaders() },
           )
         }
@@ -557,7 +560,7 @@ export async function POST(req: NextRequest) {
         timeout: false,
         durationMs: Date.now() - started,
       })
-      return new Response(createCrisisSseStream(), {
+      return new Response(createCrisisSseStream(safetyResponse), {
         headers: sseResponseHeaders(),
       })
     }
@@ -573,12 +576,10 @@ export async function POST(req: NextRequest) {
     }
     const client = deepseekResolved.client
 
-    let systemPrompt: string
-    if (mode === "companion") {
-      systemPrompt = getCompanionChatPrompt(routingContext)
-    } else {
-      systemPrompt = `${getGuestSystemPrompt(guestId)}\n\n${CONVERSATION_CONTINUITY_SYSTEM_NOTE}\n\n${PROMPT_INJECTION_SYSTEM_NOTE}`
-    }
+    const systemPrompt = getChatSystemPrompt({
+      mode, guestId, routingContext, injectionDetected,
+      persistence: savedTurn ? "saved" : "ephemeral",
+    })
 
     const context = buildChatContext(messages)
     const llmMessages = sanitizeMessagesForLlm(context.messages)
@@ -599,6 +600,8 @@ export async function POST(req: NextRequest) {
       },
       async start(controller) {
         try {
+          // An SSE comment opens the stream without exposing an unreviewed token.
+          controller.enqueue(new TextEncoder().encode(": pending\n\n"))
           await streamDeepSeekWithModeration(controller, {
             client,
             systemPrompt,

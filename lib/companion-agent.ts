@@ -6,14 +6,15 @@ import {
   IBSV_TYPES,
   SUPPORT_RESOURCES_TEXT,
   CRISIS_PROTOCOL,
-  PRIVACY_PRINCIPLES,
   OUTPUT_FORMAT,
   LEARN_GUIDE,
 } from "./companion-prompt-parts"
+import { AGENT_PROMPTS, renderPrivacyPrinciples, type ChatPersistence } from "./agent-prompt-config"
 
 export function getCompanionSystemPrompt(
   matchedCaseSummaries: string,
   sopBlock = "",
+  persistence?: ChatPersistence,
 ): string {
   const sopSection = sopBlock.trim()
     ? `\n${sopBlock.trim()}\n`
@@ -41,13 +42,13 @@ ${matchedCaseSummaries || "（当前无匹配摘要，仅提供通用支持与�
 ${sopSection}
 ## 自助工具
 当用户表达下架、删除、投诉等需求时，告知界面会提供对应的维权指南与模板下载，并简要说明首要步骤。
-当用户询问维权流程时：若上方已提供 SOP 材料，按材料用同伴口吻转述，不要发明条款；SOP 写了条号就写出条号，问时效就主动讲 6 个月行政时效，讲 AI 换脸就带上「若牟利」；若没有 SOP 材料，不编具体条款、时效或幅度，引导查看自助包或咨询律师/法援。
+${AGENT_PROMPTS.companion.legalGuidance}
 
 ${SUPPORT_RESOURCES_TEXT}
 
 ${CRISIS_PROTOCOL}
 
-${PRIVACY_PRINCIPLES}`
+${renderPrivacyPrinciples(persistence)}`
 }
 
 export const COMPANION_GREETING = "你好，我是你的同伴支持者小荧。"

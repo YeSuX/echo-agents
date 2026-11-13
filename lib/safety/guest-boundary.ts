@@ -1,6 +1,7 @@
-import { GUESTS } from "@/data/guests"
+import { getGuestProfile } from "@/data/guests"
 import { GUEST_BOUNDARY_FALLBACK } from "./constants"
 import { moderateAssistantOutput } from "./output-moderation"
+import { isDisavowedClaim } from "./claim-context"
 
 /** 嘉宾即兴编造具体经历的常见模式 */
 const FABRICATION_PATTERNS: readonly RegExp[] = [
@@ -8,6 +9,10 @@ const FABRICATION_PATTERNS: readonly RegExp[] = [
   /我(?:当时|那年)?(?:\d{1,2})岁/,
   /(?:我的|一位)(?:同事|老板|前男友|前女友|同学|邻居)(?:叫|名叫|是)[\u4e00-\u9fa5]{1,4}/,
   /(?:去了|在)(?:派出所|法院|检察院).{0,30}(?:拿到了|收到了|判决)/,
+  /我(?:也(?:曾经|经历过|遇到过|遭遇过)|曾经|当时|那时|那年|后来|之前|过去|以前|有过|遇到过|经历过|遭遇过|小时候|记得|有一次|被|去过|住在|就读|工作过|出生)/,
+  /我的(?:家人|父母|母亲|父亲|伴侣|前任|同事|老板|同学|孩子|经历|故事|创伤|遭遇)/,
+  /我(?:和|跟|与)(?:我的)?(?:家人|父母|母亲|父亲|伴侣|同事|朋友|律师).{0,16}(?:过|当时|那时|后来|以前|曾经|当年)/,
+  /我(?:第一次|最初|开始时)|(?:以前|当时|后来|曾经).{0,4}我/,
 ]
 
 export type GuestBoundaryResult = {
@@ -22,6 +27,8 @@ export function checkGuestResponse(
   assistantText: string,
 ): GuestBoundaryResult {
   const reasons: string[] = []
+  const guest = getGuestProfile(guestId)
+  if (!guest) return { content: GUEST_BOUNDARY_FALLBACK, flagged: true, reasons: ["unknown_guest"] }
 
   const moderation = moderateAssistantOutput(assistantText, "guest")
   if (moderation.severity === "block") {
@@ -33,19 +40,23 @@ export function checkGuestResponse(
   }
 
   for (const re of FABRICATION_PATTERNS) {
-    if (re.test(assistantText)) {
-      reasons.push("fabricated_detail")
-      break
+    for (const match of assistantText.matchAll(new RegExp(re.source, "g"))) {
+      if (isDisavowedClaim(assistantText, match.index, match[0].length)) continue
+      const before = assistantText.slice(0, match.index).split(/[。！？!?\n]/).at(-1) ?? ""
+      const after = assistantText.slice(match.index).split(/[。！？!?\n]/)[0]
+      const claim = `${before}${after}`.replace(/[\s，,；;：:]/g, "")
+      const authorized = guest.authorization.facts.some(fact =>
+        fact.replace(/[\s，,；;：:。！？!?]/g, "") === claim,
+      )
+      if (!authorized) {
+        reasons.push("fabricated_detail")
+        if (!guest.authorization.topics.some(topic => userQuestion.includes(topic))) {
+          reasons.push("off_topic_personal_story")
+        }
+        break
+      }
     }
-  }
-
-  const guest = GUESTS.find((g) => g.id === guestId)
-  if (guest && isClearlyOffTopic(userQuestion, guest.tagline)) {
-    const sharesPersonalStory =
-      /我(?:曾经|当时|那时|有一次|记得)|我的经历/.test(assistantText)
-    if (sharesPersonalStory && assistantText.length > 120) {
-      reasons.push("off_topic_personal_story")
-    }
+    if (reasons.length) break
   }
 
   if (reasons.length > 0) {
@@ -57,30 +68,4 @@ export function checkGuestResponse(
   }
 
   return { content: assistantText, flagged: false, reasons: [] }
-}
-
-function isClearlyOffTopic(question: string, tagline: string): boolean {
-  const q = question.toLowerCase()
-  const topicHints = extractTopicHints(tagline)
-  if (topicHints.length === 0) return false
-  return !topicHints.some((hint) => q.includes(hint))
-}
-
-function extractTopicHints(tagline: string): string[] {
-  const hints: string[] = []
-  const pairs: [RegExp, string][] = [
-    [/家人|家庭|沟通/, "家人"],
-    [/司法|程序|法院|律师/, "司法"],
-    [/康复|支撑|恢复/, "康复"],
-    [/舆论|二次伤害/, "舆论"],
-    [/伴侣|信任|边界/, "伴侣"],
-    [/幸存者|称呼/, "幸存者"],
-    [/职场|自我照顾/, "职场"],
-    [/写作|表达/, "写作"],
-    [/听见|理解/, "理解"],
-  ]
-  for (const [re, hint] of pairs) {
-    if (re.test(tagline)) hints.push(hint)
-  }
-  return hints
 }

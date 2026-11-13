@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { AGENT_PROMPTS } from "@/lib/agent-prompt-config"
 
 export default function PrivacyPage() {
   return (
@@ -16,10 +17,10 @@ export default function PrivacyPage() {
           </p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
             <li>
-              <strong>未登录对话</strong>：系统不会将对话写入云端记录。关闭网页或结束会话后，内容不会出现在账号历史中。
+              <strong>未登录对话</strong>：{AGENT_PROMPTS.privacy.anonymous}
             </li>
             <li>
-              <strong>登录用户云端同步（默认开启）</strong>：登录后发送的新消息会与当前账号关联并加密存储，用于跨设备恢复。登录前的临时对话不会自动上传。你可以随时关闭未来同步，或删除单条及全部记录；明确关闭后，系统不会自动重新开启。
+              <strong>登录用户云端同步（默认开启）</strong>：{AGENT_PROMPTS.privacy.history}
             </li>
             <li>
               <strong>故事留存（可选）</strong>：如果你愿意将经历留给我们，用于协助我们监测此类事件的趋势、推动法律改进或进行公益倡导，你可以选择授权存储。你的痛苦不应被遗忘，它可以化作改变世界的力量。
@@ -28,13 +29,13 @@ export default function PrivacyPage() {
         </div>
 
         <div>
-          <h2 className="text-lg font-medium">2. 自动「面纱」：你的真实身份会被隐藏</h2>
+          <h2 className="text-lg font-medium">{AGENT_PROMPTS.privacy.redactionTitle}</h2>
           <p className="mt-2 text-muted-foreground">
-            即便你选择留下故事，AI 也会在第一时间为你戴上「面纱」。
+            {AGENT_PROMPTS.privacy.redactionIntro}
           </p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
             <li>
-              <strong>实时脱敏</strong>：系统内置了识别引擎，当它检测到姓名、手机号、具体社交账号、URL链接时，会将其替换为 [已隐藏]。
+              <strong>规则脱敏</strong>：{AGENT_PROMPTS.privacy.redaction}
             </li>
             <li>
               <strong>脱敏示例</strong>：你的原话 &quot;我在 [网址] 看到对方留了我的电话 138...&quot; 会被存为 &quot;我在 [已隐藏] 看到对方留了我的电话 [已隐藏]...&quot;。

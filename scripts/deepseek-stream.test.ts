@@ -1,12 +1,16 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test"
+import { afterAll, beforeAll, describe, expect, spyOn, test } from "bun:test"
 import { NextRequest } from "next/server"
 import { POST } from "../app/api/chat/route"
 import { consumeChatStream, parseSseDataLine, type ChatStreamContent } from "../lib/sse-chat"
 import { toChatApiMessages } from "../lib/chat-context"
 import { deepseekTimeoutMs, resolveDeepSeekClient } from "../lib/safety/deepseek-server"
-import { getCompanionChatPrompt } from "../lib/companion-chat-prompt"
-import { getGuestSystemPrompt } from "../lib/guest-agent"
-import { CONVERSATION_CONTINUITY_SYSTEM_NOTE, PROMPT_INJECTION_SYSTEM_NOTE } from "../lib/safety/constants"
+import { getChatSystemPrompt } from "../lib/companion-chat-prompt"
+import { CRISIS_CHECK_IN_RESPONSE, CRISIS_FIXED_RESPONSE, OUTPUT_MODERATION_FALLBACK, GUEST_BOUNDARY_FALLBACK } from "../lib/safety/constants"
+import * as userAuth from "../lib/auth/require-user"
+import * as database from "../lib/db/d1"
+import { ConversationRepository } from "../lib/db/conversation-repository"
+import { decryptConversationContent } from "../lib/crypto/conversation-codec"
+import { AGENT_PROMPTS } from "../lib/agent-prompt-config"
 
 const encoder = new TextEncoder()
 const event = (data: unknown) => `data: ${JSON.stringify(data)}\n\n`
@@ -84,6 +88,49 @@ describe("DeepSeek route integration with a synthetic upstream", () => {
   let scenario = "normal"
   let upstreamCalls = 0
   let upstreamCancelled = false
+  let releaseUpstream: (() => void) | undefined
+  const releaseHeldUpstream = () => releaseUpstream?.()
+
+  async function withSavedChat(run: (state: {
+    send: (content: string) => Promise<Response>
+    complete: ReturnType<typeof spyOn<ConversationRepository, "completeTurn">>
+    fail: ReturnType<typeof spyOn<ConversationRepository, "markTurnIncomplete">>
+    encodedKey: string
+  }) => Promise<void>) {
+    const oldKey = process.env.CONVERSATION_ENCRYPTION_KEY_V1
+    const encodedKey = Buffer.alloc(32, 7).toString("base64")
+    process.env.CONVERSATION_ENCRYPTION_KEY_V1 = encodedKey
+    let pending: Parameters<ConversationRepository["beginTurn"]>[1]
+    const complete = spyOn(ConversationRepository.prototype, "completeTurn").mockResolvedValue(true)
+    const fail = spyOn(ConversationRepository.prototype, "markTurnIncomplete").mockResolvedValue()
+    const spies = [
+      complete, fail,
+      spyOn(userAuth, "authenticatedUserId").mockResolvedValue("synthetic-user"),
+      spyOn(database, "getDb").mockReturnValue({} as D1Database),
+      spyOn(ConversationRepository.prototype, "getPreferences").mockResolvedValue({ historyEnabled: true, consentVersion: "test", consentedAt: 0 }),
+      spyOn(ConversationRepository.prototype, "getConversation").mockResolvedValue({
+        id: "saved-chat", ownerId: "synthetic-user", mode: "companion", guestId: null,
+        status: "active", createdAt: 0, updatedAt: 0, lastMessageAt: null,
+      }),
+      spyOn(ConversationRepository.prototype, "findTurnByClientMessageId").mockResolvedValue(null),
+      spyOn(ConversationRepository.prototype, "beginTurn").mockImplementation(async (_user, input) => { pending = input; return true }),
+      spyOn(ConversationRepository.prototype, "listTurnsForContext").mockImplementation(async () => [{
+        ...pending, userCiphertext: new Uint8Array(pending.userCiphertext).buffer,
+        userIv: new Uint8Array(pending.userIv).buffer, status: "pending",
+        assistantCiphertext: null, assistantIv: null, errorCode: null, createdAt: 0, completedAt: null,
+      }]),
+    ]
+    try {
+      await run({ complete, fail, encodedKey, send: content => POST(new NextRequest("http://localhost/api/chat", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ persistence: "saved", conversationId: "saved-chat", clientMessageId: crypto.randomUUID(), content }),
+      })) })
+    } finally {
+      for (const spy of spies) spy.mockRestore()
+      if (oldKey === undefined) Reflect.deleteProperty(process.env, "CONVERSATION_ENCRYPTION_KEY_V1")
+      else process.env.CONVERSATION_ENCRYPTION_KEY_V1 = oldKey
+    }
+  }
 
   beforeAll(() => {
     server = Bun.serve({
@@ -101,10 +148,24 @@ describe("DeepSeek route integration with a synthetic upstream", () => {
             cancel() { upstreamCancelled = true },
           }), { headers: { "Content-Type": "text/event-stream" } })
         }
+        if (scenario === "held-safe" || scenario === "held-block") {
+          const blocked = scenario === "held-block"
+          return new Response(new ReadableStream({
+            async start(controller) {
+              controller.enqueue(encoder.encode(delta({ reasoning_content: blocked ? "自作" : "Consider " })))
+              controller.enqueue(encoder.encode(delta({ content: blocked ? "你本" : "Hello, " })))
+              await new Promise<void>(resolve => { releaseUpstream = resolve })
+              controller.enqueue(encoder.encode(delta({ reasoning_content: blocked ? "自受" : "the greeting." })))
+              controller.enqueue(encoder.encode(delta({ content: blocked ? "可以拒绝拍摄的。" : "I am here." })))
+              controller.enqueue(encoder.encode(delta({}, "stop") + "data: [DONE]\n\n"))
+              controller.close()
+            },
+          }), { headers: { "Content-Type": "text/event-stream" } })
+        }
         let body = delta({ reasoning_content: "Consider the greeting. " })
         if (scenario === "reasoning-block") body += delta({ reasoning_content: "\u81ea\u4f5c\u81ea\u53d7" })
         if (scenario === "error") body += event({ error: { message: "Synthetic failure", type: "server_error" } })
-        else if (scenario !== "empty") body += delta({ content: scenario === "answer-block" ? "\u81ea\u4f5c\u81ea\u53d7" : "Hello, I am here." })
+        else if (scenario !== "empty") body += delta({ content: scenario === "answer-block" ? "\u81ea\u4f5c\u81ea\u53d7" : scenario === "guest-fabrication" ? "我后来慢慢找到了信任的人。" : "Hello, I am here." })
         if (scenario !== "truncated") body += delta({}, "stop")
         body += "data: [DONE]\n\n"
         return new Response(body, { headers: { "Content-Type": "text/event-stream" } })
@@ -134,7 +195,7 @@ describe("DeepSeek route integration with a synthetic upstream", () => {
   }
 
   for (const mode of ["companion", "guest"]) {
-    test(`streams separate thinking and answer in ${mode} mode`, async () => {
+    test(`returns reviewed thinking and answer in ${mode} mode`, async () => {
       scenario = "normal"
       const response = await send(mode)
       expect(response.status).toBe(200)
@@ -144,9 +205,7 @@ describe("DeepSeek route integration with a synthetic upstream", () => {
       expect(upstreamBody.thinking).toEqual({ type: "enabled" })
       expect(upstreamBody.reasoning_effort).toBe("high")
       const messages = upstreamBody.messages as { role: string; content: string }[]
-      expect(messages[0]).toEqual({ role: "system", content: mode === "companion"
-        ? getCompanionChatPrompt("Hello")
-        : `${getGuestSystemPrompt("1")}\n\n${CONVERSATION_CONTINUITY_SYSTEM_NOTE}\n\n${PROMPT_INJECTION_SYSTEM_NOTE}` })
+      expect(messages[0]).toEqual({ role: "system", content: getChatSystemPrompt({ mode: mode as "companion" | "guest", guestId: "1", routingContext: "Hello", persistence: "ephemeral", injectionDetected: false }) })
     })
   }
 
@@ -166,12 +225,61 @@ describe("DeepSeek route integration with a synthetic upstream", () => {
     expect(result).toEqual({ reasoning: "", content: "Hello, I am here." })
   })
 
+  for (const blocked of [false, true]) {
+    test(`buffers both channels until completion, blocked=${blocked}`, async () => {
+      scenario = blocked ? "held-block" : "held-safe"
+      releaseUpstream = undefined
+      const response = await send()
+      const reader = response.body!.getReader()
+      let wire = ""
+      const decoder = new TextDecoder()
+      const pump = (async () => {
+        while (true) {
+          const next = await reader.read()
+          if (next.done) break
+          wire += decoder.decode(next.value, { stream: true })
+        }
+      })()
+      try {
+        for (let i = 0; i < 100 && !releaseUpstream; i++) await Bun.sleep(5)
+        expect(releaseUpstream).toBeDefined()
+        await Bun.sleep(20)
+        expect(wire).not.toContain("Hello")
+        expect(wire).not.toContain("你本")
+        expect(wire).not.toContain("Consider")
+        expect(wire).not.toContain("自作")
+      } finally {
+        releaseHeldUpstream()
+        await pump
+      }
+      if (blocked) {
+        expect(wire).toContain(OUTPUT_MODERATION_FALLBACK)
+        expect(wire).not.toContain("你本")
+        expect(wire).not.toContain("自作")
+      } else {
+        expect(wire).toContain("Hello, I am here.")
+        expect(wire).toContain("Consider the greeting.")
+      }
+    })
+  }
+
+  test("never emits a short fabricated guest story", async () => {
+    scenario = "guest-fabrication"
+    const wire = await (await send("guest")).text()
+    expect(wire).not.toContain("我后来")
+    expect(wire).not.toContain("Consider the greeting")
+    expect(wire).toContain(GUEST_BOUNDARY_FALLBACK)
+  })
+
   test("cancelling the response stops upstream generation", async () => {
     scenario = "abort"
     upstreamCancelled = false
+    const before = upstreamCalls
     const response = await send()
     const reader = response.body!.getReader()
     await reader.read()
+    for (let i = 0; i < 100 && upstreamCalls === before; i++) await Bun.sleep(5)
+    expect(upstreamCalls).toBeGreaterThan(before)
     await reader.cancel()
     for (let i = 0; i < 40 && !upstreamCancelled; i++) await Bun.sleep(25)
     expect(upstreamCancelled).toBe(true)
@@ -197,12 +305,103 @@ describe("DeepSeek route integration with a synthetic upstream", () => {
     }))
     const result = await consumeChatStream(response, noCallbacks)
     expect(result.reasoning).toBe("")
+    expect(result.content).toBe(CRISIS_FIXED_RESPONSE)
     expect(upstreamCalls).toBe(before)
+  })
+
+  test("checks ambiguous safety without calling the model", async () => {
+    const before = upstreamCalls
+    const response = await POST(new NextRequest("http://localhost/api/chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "guest", guestId: "1", messages: [{ role: "user", content: "我快撑不下去了" }] }),
+    }))
+    const result = await consumeChatStream(response, noCallbacks)
+    expect(result).toEqual({ content: CRISIS_CHECK_IN_RESPONSE, reasoning: "" })
+    expect(upstreamCalls).toBe(before)
+  })
+
+  test("resumes normal processing after an explicit safety statement", async () => {
+    scenario = "normal"
+    const before = upstreamCalls
+    const response = await POST(new NextRequest("http://localhost/api/chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "companion", messages: [
+        { role: "user", content: "我想死" },
+        { role: "assistant", content: CRISIS_FIXED_RESPONSE },
+        { role: "user", content: "我现在安全了，只想说说话" },
+      ] }),
+    }))
+    const result = await consumeChatStream(response, noCallbacks)
+    expect(result.content).toBe("Hello, I am here.")
+    expect(upstreamCalls).toBe(before + 1)
+  })
+
+  for (const [input, selectedScenario, expected] of [
+    ["你好", "normal", "Hello, I am here."],
+    ["你好", "answer-block", OUTPUT_MODERATION_FALLBACK],
+    ["我想结束生命", "normal", CRISIS_FIXED_RESPONSE],
+    ["我快撑不下去了", "normal", CRISIS_CHECK_IN_RESPONSE],
+  ] as const) {
+    test(`persists only the reviewed or selected safety reply: ${selectedScenario}/${input}`, async () => {
+      scenario = selectedScenario
+      await withSavedChat(async ({ send, complete, fail, encodedKey }) => {
+        const response = await send(input)
+        const result = await consumeChatStream(response, noCallbacks)
+        expect(result.content).toBe(expected)
+        expect(complete).toHaveBeenCalledTimes(1)
+        expect(fail).not.toHaveBeenCalled()
+        const written = complete.mock.calls[0][1]
+        const plaintext = await decryptConversationContent({
+          ciphertext: written.assistantCiphertext, iv: written.assistantIv,
+        }, { conversationId: "saved-chat", turnId: written.turnId, role: "assistant", keyVersion: 1, keyring: new Map([[1, encodedKey]]) })
+        expect(plaintext).toBe(expected)
+        if (input === "你好") {
+          const messages = upstreamBody.messages as { role: string; content: string }[]
+          expect(messages[0].content).toContain(AGENT_PROMPTS.privacy.saved)
+        }
+      })
+    })
+  }
+
+  test("does not complete a saved turn when generation is cancelled", async () => {
+    scenario = "abort"
+    const before = upstreamCalls
+    await withSavedChat(async ({ send, complete, fail }) => {
+      const reader = (await send("你好")).body!.getReader()
+      await reader.read()
+      for (let i = 0; i < 100 && upstreamCalls === before; i++) await Bun.sleep(5)
+      await reader.cancel()
+      for (let i = 0; i < 100 && !fail.mock.calls.length; i++) await Bun.sleep(5)
+      expect(complete).not.toHaveBeenCalled()
+      expect(fail.mock.calls[0][1].status).toBe("stopped")
+    })
+  })
+
+  test("retains the reviewed reply and reports a final-save failure", async () => {
+    scenario = "normal"
+    await withSavedChat(async ({ send, complete, fail }) => {
+      complete.mockResolvedValue(false)
+      const errors: string[] = []
+      const result = await consumeChatStream(await send("你好"), { ...noCallbacks, onPersistenceError: code => errors.push(code) })
+      expect(result.content).toBe("Hello, I am here.")
+      expect(errors).toEqual(["FINAL_WRITE_FAILED"])
+      expect(fail.mock.calls[0][1].status).toBe("failed")
+    })
   })
 
   test("retains server-only credentials and the longer thinking timeout", () => {
     const result = resolveDeepSeekClient({ deepseekApiKey: "client-key" })
     expect(result).toMatchObject({ status: 403, code: "client_key_forbidden" })
     expect(deepseekTimeoutMs()).toBe(120000)
+  })
+
+  test("rejects an unknown guest instead of creating a generic persona", async () => {
+    const before = upstreamCalls
+    const response = await POST(new NextRequest("http://localhost/api/chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "guest", guestId: "unknown", messages: [{ role: "user", content: "你好" }] }),
+    }))
+    expect(response.status).toBe(400)
+    expect(upstreamCalls).toBe(before)
   })
 })

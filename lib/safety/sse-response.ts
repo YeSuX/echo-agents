@@ -8,10 +8,10 @@ export function encodeSseDone(): Uint8Array {
   return new TextEncoder().encode("data: [DONE]\n\n")
 }
 
-export function createCrisisSseStream(): ReadableStream<Uint8Array> {
+export function createCrisisSseStream(content = CRISIS_FIXED_RESPONSE): ReadableStream<Uint8Array> {
   return new ReadableStream({
     start(controller) {
-      controller.enqueue(encodeSseData({ content: CRISIS_FIXED_RESPONSE }))
+      controller.enqueue(encodeSseData({ content }))
       controller.enqueue(encodeSseDone())
       controller.close()
     },

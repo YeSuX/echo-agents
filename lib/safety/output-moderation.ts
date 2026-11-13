@@ -2,6 +2,7 @@ import {
   GUEST_BOUNDARY_FALLBACK,
   OUTPUT_MODERATION_FALLBACK,
 } from "./constants"
+import { isDisavowedClaim } from "./claim-context"
 
 export type ModerationSeverity = "ok" | "warn" | "block"
 
@@ -16,7 +17,7 @@ type Rule = { id: string; re: RegExp; severity: ModerationSeverity }
 const OUTPUT_RULES: readonly Rule[] = [
   {
     id: "victim_blame",
-    re: /你本可以|本可以(?:避免|拒绝|不)|为什么不(?:拒绝|报警|说)|是你自己|自作自受|当初(?:就不该|为什么要)|你也有责任|反应过度/,
+    re: /你本可以|本可以(?:避免|拒绝|不)|为什么不(?:拒绝|报警|说)|是你自己的(?:错|责任|问题)|是你自己造成|自作自受|当初(?:就不该|为什么要)|你也有责任|反应过度/,
     severity: "block",
   },
   {
@@ -49,7 +50,8 @@ export function moderateAssistantOutput(
   let maxSeverity: ModerationSeverity = "ok"
 
   for (const rule of OUTPUT_RULES) {
-    if (rule.re.test(text)) {
+    const matches = text.matchAll(new RegExp(rule.re.source, `${rule.re.flags}g`))
+    if ([...matches].some(match => !isDisavowedClaim(text, match.index, match[0].length))) {
       reasons.push(rule.id)
       if (rule.severity === "block") maxSeverity = "block"
       else if (rule.severity === "warn" && maxSeverity === "ok") {

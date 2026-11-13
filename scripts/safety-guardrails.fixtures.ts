@@ -128,7 +128,7 @@ export const GUEST_FABRICATION_RESPONSE =
   "记得那是2021年，我在杭州市某某路派出所拿到了立案回执，我的前男友叫王明……"
 
 export const GUEST_SAFE_RESPONSE =
-  "家人沟通这件事确实很难，我后来是慢慢找到能信任的人说的。"
+  "家人沟通这件事确实很难，可以先选择让你感到安全的方式。"
 
 export const CRISIS_CONVERSATION = [
   { role: "user", content: "你好" },

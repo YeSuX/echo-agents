@@ -26,7 +26,7 @@ import {
 import { parseFetchErrorBody } from "@/lib/json-parse"
 import { sseItemsToPanelItems } from "@/lib/sse-self-help"
 import { consumeChatStream } from "@/lib/sse-chat"
-import { AgentReasoning } from "@/components/agent-reasoning"
+import { AgentThinking } from "@/components/agent-thinking"
 import { cn } from "@/lib/utils"
 import {
   MAX_CHAT_INPUT_CHARS,
@@ -46,7 +46,6 @@ export type ConversationMessage = {
   role: MessageRole
   content: string
   isFallback?: boolean
-  reasoning?: string
 }
 
 type ConversationPageProps = {
@@ -99,7 +98,6 @@ function ConversationContent({
   const [selfHelpItems, setSelfHelpItems] = useState<SelfHelpPanelItem[]>([])
   const [isSending, setIsSending] = useState(false)
   const [streamingContent, setStreamingContent] = useState("")
-  const [streamingReasoning, setStreamingReasoning] = useState("")
   const [error, setError] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -121,7 +119,7 @@ function ConversationContent({
   useEffect(() => {
     const viewport = scrollRef.current
     viewport?.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" })
-  }, [messages, streamingContent, streamingReasoning])
+  }, [messages, streamingContent])
 
   useEffect(() => {
     if (!initialConversationId || preferencesLoading) return
@@ -192,14 +190,12 @@ function ConversationContent({
     )
     setSelfHelpItems((prev) => mergeSelfHelpDeduped(prev, derived))
     setIsSending(true)
-    setStreamingReasoning("")
     setStreamingContent("")
 
     abortRef.current = new AbortController()
     const signal = abortRef.current.signal
 
     let fullContent = ""
-    let fullReasoning = ""
 
     try {
       const savedBody = await persistence.savedRequest(text)
@@ -223,9 +219,7 @@ function ConversationContent({
       await consumeChatStream(res, {
         onUpdate: (state) => {
           fullContent = state.content
-          fullReasoning = state.reasoning
           setStreamingContent(state.content)
-          setStreamingReasoning(state.reasoning)
         },
         onSelfHelp: (items) => {
           const panel = sseItemsToPanelItems(items)
@@ -242,7 +236,6 @@ function ConversationContent({
         {
           id: `agent-${Date.now()}`,
           role: "agent",
-          reasoning: fullReasoning,
           content: fullContent || "（没有收到回复，请重试。）",
         },
       ])
@@ -254,7 +247,6 @@ function ConversationContent({
           {
             id: `agent-${Date.now()}`,
             role: "agent",
-            reasoning: fullReasoning,
             content: fullContent.trim()
               ? `${fullContent.trim()}\n\n（已停止生成）`
               : "已停下。你可以换个问题继续，或者先离开一会儿。",
@@ -378,7 +370,6 @@ function ConversationContent({
                   guestName={guestName}
                   content={msg.content}
                   isFallback={msg.isFallback}
-                  reasoning={msg.reasoning}
                 />
               ) : (
                 <UserBubble key={msg.id} content={msg.content} />
@@ -388,7 +379,6 @@ function ConversationContent({
               <AgentBubble
                 guestName={guestName}
                 content={streamingContent}
-                reasoning={streamingReasoning}
                 streaming
                 className={cn(streamingContent && "opacity-90")}
               />
@@ -455,14 +445,12 @@ function ConversationContent({
 function AgentBubble({
   guestName,
   content,
-  reasoning,
   isFallback,
   streaming,
   className,
 }: {
   guestName: string
   content: string
-  reasoning?: string
   isFallback?: boolean
   streaming?: boolean
   className?: string
@@ -480,12 +468,9 @@ function AgentBubble({
         <p className="mb-0.5 font-medium text-muted-foreground">
           {guestName}
         </p>
-        <AgentReasoning content={reasoning} isThinking={streaming && !content} />
-        {streaming ? (
-          <p className="whitespace-pre-wrap">{content || (reasoning ? "" : "Preparing a reply…")}</p>
-        ) : (
-          <AgentMarkdown content={content} />
-        )}
+        {streaming && !content && <AgentThinking />}
+        {streaming && content && <p className="whitespace-pre-wrap">{content}</p>}
+        {!streaming && <AgentMarkdown content={content} />}
       </div>
     </div>
   )

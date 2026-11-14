@@ -47,7 +47,7 @@ import {
 import { parseFetchErrorBody } from "@/lib/json-parse"
 import { sseItemsToPanelItems } from "@/lib/sse-self-help"
 import { consumeChatStream } from "@/lib/sse-chat"
-import { AgentReasoning } from "@/components/agent-reasoning"
+import { AgentThinking } from "@/components/agent-thinking"
 import { cn } from "@/lib/utils"
 import {
   MAX_CHAT_INPUT_CHARS,
@@ -74,7 +74,6 @@ type ConversationMessage = {
   role: MessageRole
   content: string
   isFallback?: boolean
-  reasoning?: string
 }
 
 function conversationUserText(messages: ConversationMessage[]): string {
@@ -111,7 +110,6 @@ function CompanionConversationContent({
   const [selfHelpItems, setSelfHelpItems] = useState<SelfHelpPanelItem[]>([])
   const [isSending, setIsSending] = useState(false)
   const [streamingContent, setStreamingContent] = useState("")
-  const [streamingReasoning, setStreamingReasoning] = useState("")
   const [error, setError] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -134,7 +132,7 @@ function CompanionConversationContent({
   useEffect(() => {
     const viewport = scrollRef.current
     viewport?.scrollTo({ top: viewport.scrollHeight, behavior: "auto" })
-  }, [messages, streamingContent, streamingReasoning])
+  }, [messages, streamingContent])
 
   useEffect(() => {
     if (!initialConversationId || preferencesLoading) return
@@ -196,7 +194,6 @@ function CompanionConversationContent({
       const nextMessages = [...messages, userMsg]
       setMessages(nextMessages)
       setIsSending(true)
-      setStreamingReasoning("")
       setStreamingContent("")
 
       const derived = deriveSelfHelpFromConversation(
@@ -207,7 +204,6 @@ function CompanionConversationContent({
       abortRef.current = new AbortController()
       const signal = abortRef.current.signal
       let fullContent = ""
-      let fullReasoning = ""
 
       try {
         const savedBody = await persistence.savedRequest(text)
@@ -232,9 +228,7 @@ function CompanionConversationContent({
         await consumeChatStream(res, {
           onUpdate: (state) => {
             fullContent = state.content
-            fullReasoning = state.reasoning
             setStreamingContent(state.content)
-            setStreamingReasoning(state.reasoning)
           },
           onSelfHelp: (items) => {
             const panel = sseItemsToPanelItems(items)
@@ -251,7 +245,6 @@ function CompanionConversationContent({
           {
             id: `agent-${Date.now()}`,
             role: "agent",
-            reasoning: fullReasoning,
             content: fullContent || "（没有收到回复，请重试。）",
           },
         ])
@@ -263,7 +256,6 @@ function CompanionConversationContent({
             {
               id: `agent-${Date.now()}`,
               role: "agent",
-              reasoning: fullReasoning,
               content: fullContent.trim()
                 ? `${fullContent.trim()}\n\n（已停止生成）`
                 : "已停下。你可以换个方式继续，或者先休息一下。",
@@ -408,7 +400,7 @@ function CompanionConversationContent({
             <div className={styles.messages}>
               {messages.map((msg) =>
                 msg.role === "agent" ? (
-                  <AgentBubble key={msg.id} content={msg.content} reasoning={msg.reasoning} isFallback={msg.isFallback} />
+                  <AgentBubble key={msg.id} content={msg.content} isFallback={msg.isFallback} />
                 ) : (
                   <UserBubble key={msg.id} content={msg.content} />
                 ),
@@ -416,7 +408,6 @@ function CompanionConversationContent({
               {isSending && (
                 <AgentBubble
                   content={streamingContent}
-                  reasoning={streamingReasoning}
                   streaming
                   className={cn(streamingContent && "opacity-90")}
                 />
@@ -492,13 +483,11 @@ function CompanionConversationContent({
 
 function AgentBubble({
   content,
-  reasoning,
   isFallback,
   streaming,
   className,
 }: {
   content: string
-  reasoning?: string
   isFallback?: boolean
   streaming?: boolean
   className?: string
@@ -521,12 +510,9 @@ function AgentBubble({
         <p className={styles.agentLabel}>
           {COMPANION_AGENT_LABEL}
         </p>
-        <AgentReasoning content={reasoning} isThinking={streaming && !content} />
-        {streaming ? (
-          <p className="whitespace-pre-wrap">{content || (reasoning ? "" : "Preparing a reply…")}</p>
-        ) : (
-          <AgentMarkdown content={content} />
-        )}
+        {streaming && !content && <AgentThinking />}
+        {streaming && content && <p className="whitespace-pre-wrap">{content}</p>}
+        {!streaming && <AgentMarkdown content={content} />}
       </div>
     </div>
   )

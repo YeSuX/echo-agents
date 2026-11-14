@@ -10,6 +10,9 @@ for (const route of ["/support", "/guests/1"]) {
     for (const outerPadding of [0, 180]) {
       test(`${route} keeps the composer stationary at ${viewport.width}px with ${outerPadding}px outer overflow`, async ({ page }) => {
         await page.setViewportSize(viewport)
+        await page.route("**/api/visitor-session", route => route.fulfill({
+          contentType: "application/json", body: JSON.stringify({ historyEnabled: false, consentVersion: null, consentedAt: null }),
+        }))
         let requestCount = 0
         await page.route("**/api/chat", async (request) => {
           requestCount += 1

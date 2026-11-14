@@ -86,7 +86,8 @@ NODE_ENV=production bunx opennextjs-cloudflare deploy
 For remote builds, configure the same production publishable key in the build
 system as well. Do not generate a new Clerk instance to repair a missing build
 variable. After deployment, verify `/`, `/sign-in`, and `/api/config` return 200,
-and anonymous `/api/conversations` returns 401.
+and `/api/conversations` without a visitor cookie returns an empty list.
+Visitor history requires the HttpOnly visitor cookie; account history uses Clerk.
 
 ```bash
 python3 scripts/check-cloudflare-auth.py https://echo-agents.cooper-ai.org
@@ -121,3 +122,30 @@ Clerk 登录、注册和应用内账号管理组件统一使用简体中文。�
 
 - [Next.js 文档](https://nextjs.org/docs)
 - [OpenNext Cloudflare](https://opennext.js.org/cloudflare)
+
+### Visitor history and username authentication
+
+Visitor history uses an HttpOnly cookie and encrypted D1 records. `/conversations`
+works for both visitors and accounts. Signing in asks before attaching this
+browser's visitor history; it never imports history automatically. Visitor
+credentials expire 30 days after their last conversation-page bootstrap.
+
+Apply `migrations/0004_visitor_conversation_owners.sql` only as part of a reviewed,
+coordinated database/application cutover. It renames the owner table, so the old
+application cannot run against the new schema. The existing development database
+also has the story-contribution migration pending. The activation plan, backup
+and verification results are in `docs/anonymous-persistence-loop-state.md`.
+
+Clerk's username/password configuration patch is prepared in
+`docs/username-auth-config.patch.json`. It enables username sign-up/sign-in and
+makes email optional while preserving password protection. Apply and read back
+this patch separately for each approved Clerk instance; code changes alone do
+not enable the provider settings. Without an email, email-based password
+recovery is unavailable.
+
+`bun run test:persistence` covers account and visitor storage with disposable
+Miniflare databases. `bun run test:anonymous-history` requires an explicit
+`ANONYMOUS_HISTORY_E2E=1`, a disposable preview database and a synthetic upstream.
+`CONVERSATION_TEST_PERSIST_PATH` overrides only the local platform-proxy storage
+path; use the `/v3` child of the Wrangler CLI `--persist-to` directory. Leave this
+variable unset for ordinary development.

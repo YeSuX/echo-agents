@@ -2,7 +2,11 @@ import type { NextConfig } from "next";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
-initOpenNextCloudflareForDev();
+initOpenNextCloudflareForDev(
+  process.env.CONVERSATION_TEST_PERSIST_PATH
+    ? { persist: { path: process.env.CONVERSATION_TEST_PERSIST_PATH } }
+    : undefined,
+);
 
 const nextConfig: NextConfig = {
   /* config options here */

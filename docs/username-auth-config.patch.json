@@ -1,0 +1,17 @@
+{
+  "auth_username": {
+    "used_for_sign_up": true,
+    "used_for_sign_in": true,
+    "required_for_sign_up": true
+  },
+  "auth_email": {
+    "used_for_sign_up": true,
+    "used_for_sign_in": true,
+    "required_for_sign_up": false,
+    "verify_at_sign_up": true
+  },
+  "auth_password": {
+    "enabled": true,
+    "required": true
+  }
+}

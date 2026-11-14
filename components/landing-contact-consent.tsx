@@ -71,7 +71,7 @@ export function LandingContactConsent() {
                 <Link href="/learn" className={styles.secondaryLink}>先了解应对方法</Link>
               </div>
               <div className={styles.heroFoot}>
-                <span><LockKeyholeIcon size={13} aria-hidden="true" />未登录时对话不保存</span>
+                <span><LockKeyholeIcon size={13} aria-hidden="true" />游客对话默认加密保存，可关闭或删除</span>
                 <a href="https://www.google.com">暂时离开此页 <ExternalLinkIcon size={12} aria-hidden="true" /></a>
               </div>
             </div>
@@ -183,10 +183,10 @@ function SafetyPanel() {
               <DialogTitle>你的信息由你决定</DialogTitle>
               <DialogDescription asChild>
                 <div className="space-y-4 text-left text-sm leading-6">
-                  <p>未登录时，对话只在当前页面临时处理，不会写入云端记录。</p>
-                  <div><p className="font-medium text-foreground">登录后默认开启云端同步</p><p>登录用户的新消息会默认加密存储并用于跨设备恢复；登录前的临时消息不会自动上传。你可以在聊天页随时关闭同步。</p></div>
+                  <p>未登录时，对话默认加密保存，可通过本浏览器的游客凭证恢复和删除；你可以随时关闭未来保存。</p>
+                  <div><p className="font-medium text-foreground">登录后默认开启云端同步</p><p>登录用户的新消息会默认加密保存并用于跨设备恢复。登录前的游客记录只有经你明确确认，才会关联到账号。</p></div>
                   <div><p className="font-medium text-foreground">用途受到限制</p><p>对话记录只用于向你恢复历史和继续聊天，不用于广告画像；匿名故事投稿仍使用独立授权和脱敏流程。</p></div>
-                  <div><p className="font-medium text-foreground">你可以撤回</p><p>你可以关闭未来保存，并在对话记录页删除单条或全部历史。</p></div>
+                  <div><p className="font-medium text-foreground">你可以撤回</p><p>你可以关闭未来保存，并在对话记录页删除单条或全部历史。游客凭证在最后一次访问后保留 30 天；清除 Cookie 或凭证过期后无法恢复游客记录。</p></div>
                 </div>
               </DialogDescription>
             </DialogHeader>

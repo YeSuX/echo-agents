@@ -1,2 +1,2 @@
 export const CONVERSATION_PREFERENCE_VERSION =
-  "conversation-storage-v2-default-on"
+  "conversation-storage-v3-visitor-default-on"

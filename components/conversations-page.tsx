@@ -1,5 +1,8 @@
 "use client"
 
+import { useAuth } from "@clerk/nextjs"
+import { VisitorHistoryClaim } from "@/components/visitor-history-claim"
+
 import Link from "next/link"
 import { ArrowLeftIcon, LoaderCircleIcon, Trash2Icon } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
@@ -32,6 +35,11 @@ function conversationHref(conversation: Conversation): string {
 }
 
 export function ConversationsPage() {
+  const { userId } = useAuth()
+  return <ConversationHistoryContent key={userId ?? "visitor"} />
+}
+
+function ConversationHistoryContent() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -89,7 +97,7 @@ export function ConversationsPage() {
             </Button>
             <h1 className="font-semibold">云端对话记录</h1>
           </div>
-          <AuthControls compact />
+          <div className="flex items-center gap-2"><VisitorHistoryClaim onClaimed={() => void load()} /><AuthControls compact /></div>
         </div>
       </header>
 
@@ -124,7 +132,7 @@ export function ConversationsPage() {
           <div className="rounded-2xl border bg-background p-8 text-center">
             <p className="font-medium">还没有云端对话</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              登录后发送的新消息会默认加密同步，并出现在这里。
+              游客和账号都可保存对话。游客记录通过本浏览器的 Cookie 访问；清除 Cookie 或凭证过期后无法恢复。
             </p>
             <Button className="mt-5" asChild>
               <Link href="/support">开始新对话</Link>

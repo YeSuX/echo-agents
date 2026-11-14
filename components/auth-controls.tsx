@@ -15,6 +15,9 @@ export function AuthControls({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-1.5">
       <Show when="signed-out">
+        <Button variant="ghost" size="icon" asChild>
+          <Link href="/conversations" aria-label="本浏览器的游客对话记录"><HistoryIcon className="size-4" /></Link>
+        </Button>
         <SignInButton mode="modal">
           <Button variant="ghost" size="sm">
             登录

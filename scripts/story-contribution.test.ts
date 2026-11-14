@@ -91,7 +91,7 @@ describe("anonymous submissions in D1", () => {
   beforeAll(async () => {
     miniflare = new Miniflare({ modules: true, script: "export default { fetch() { return new Response('ok') } }", d1Databases: ["DB"] })
     db = await miniflare.getD1Database("DB") as D1Database
-    for (const filename of ["0001_conversation_storage.sql", "0003_story_contributions.sql"]) {
+    for (const filename of ["0001_conversation_storage.sql", "0003_story_contributions.sql", "0004_visitor_conversation_owners.sql"]) {
       for (const sql of readFileSync(`migrations/${filename}`, "utf8").split(";")) {
         if (sql.trim()) await db.prepare(sql).run()
       }
@@ -172,7 +172,7 @@ describe("anonymous submissions in D1", () => {
   })
 
   test("history pagination retains ownership and can read beyond 100 turns", async () => {
-    await db.prepare("INSERT INTO app_users (clerk_user_id, created_at, updated_at) VALUES ('pagination-owner', 0, 0)").run()
+    await db.prepare("INSERT INTO conversation_owners (id, created_at, updated_at) VALUES ('pagination-owner', 0, 0)").run()
     await db.prepare("INSERT INTO conversations (id, owner_id, mode, created_at, updated_at) VALUES ('pagination-chat', 'pagination-owner', 'companion', 0, 0)").run()
     await db.batch(Array.from({ length: 103 }, (_, i) => db.prepare(`
       INSERT INTO conversation_turns (id, conversation_id, client_message_id, user_ciphertext, user_iv, encryption_key_version, status, created_at)

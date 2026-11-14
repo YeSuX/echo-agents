@@ -1,5 +1,8 @@
 "use client"
 
+import { useAuth } from "@clerk/nextjs"
+import { VisitorHistoryClaim } from "@/components/visitor-history-claim"
+
 import Link from "next/link"
 import Image from "next/image"
 import { DESIGN_ASSETS } from "@/lib/design-assets"
@@ -82,7 +85,12 @@ function conversationUserText(messages: ConversationMessage[]): string {
 }
 
 
-export function CompanionConversationPage({
+export function CompanionConversationPage(props: { initialConversationId?: string }) {
+  const { userId } = useAuth()
+  return <CompanionConversationContent key={userId ?? "visitor"} {...props} />
+}
+
+function CompanionConversationContent({
   initialConversationId,
 }: {
   initialConversationId?: string
@@ -91,7 +99,7 @@ export function CompanionConversationPage({
   const persistence = useConversationPersistence({
     mode: "companion",
   })
-  const { isSignedIn, resumeConversation } = persistence
+  const { isLoading: preferencesLoading, resumeConversation } = persistence
   const [loadedHistoryId, setLoadedHistoryId] = useState<string | undefined>(undefined)
   const historyLoading = Boolean(initialConversationId && loadedHistoryId !== initialConversationId)
   const [input, setInput] = useState("")
@@ -129,7 +137,7 @@ export function CompanionConversationPage({
   }, [messages, streamingContent, streamingReasoning])
 
   useEffect(() => {
-    if (!initialConversationId || !isSignedIn) return
+    if (!initialConversationId || preferencesLoading) return
     let cancelled = false
     const historyAbort = new AbortController()
     void loadConversationHistory(initialConversationId, historyAbort.signal)
@@ -173,7 +181,7 @@ export function CompanionConversationPage({
       cancelled = true
       historyAbort.abort()
     }
-  }, [initialConversationId, isSignedIn, resumeConversation])
+  }, [initialConversationId, preferencesLoading, resumeConversation])
 
   const sendMessage = useCallback(
     async (rawText: string) => {
@@ -342,10 +350,14 @@ export function CompanionConversationPage({
               {sidebar}
             </SheetContent>
           </Sheet>
+          <VisitorHistoryClaim blocked={isSending} onClaimed={() => {
+            if (initialConversationId && loadedHistoryId !== initialConversationId) window.location.reload()
+          }} />
           <ConversationSaveControl
             isSignedIn={persistence.isSignedIn}
             historyEnabled={persistence.historyEnabled}
             isLoading={persistence.isLoading}
+            loadError={persistence.error}
             onEnable={persistence.enableHistory}
             onDisable={persistence.disableHistory}
           />
@@ -363,12 +375,12 @@ export function CompanionConversationPage({
       </header>
 
       {historyLoading && <p className="shrink-0 border-b px-4 py-2 text-sm text-muted-foreground" role="status">Loading the complete conversation history…</p>}
-      {error && (
+      {(error || persistence.error) && (
         <div
           className="shrink-0 border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-sm text-destructive"
           role="alert"
         >
-          {error}
+          {error || persistence.error}
         </div>
       )}
 
@@ -417,7 +429,7 @@ export function CompanionConversationPage({
       <div className={styles.composerArea}>
         {!hasConversation && (
           <section className={styles.quickStart} aria-label="选择一个常见问题开始">
-            <QuickReplies replies={COMPANION_QUICK_REPLIES} onPick={handleQuickPick} disabled={isSending || historyLoading} />
+            <QuickReplies replies={COMPANION_QUICK_REPLIES} onPick={handleQuickPick} disabled={isSending || historyLoading || preferencesLoading} />
           </section>
         )}
         <div className={styles.composer}>
@@ -428,7 +440,7 @@ export function CompanionConversationPage({
             placeholder="你可以从任何地方开始说起…"
             className={styles.messageInput}
             rows={1}
-            disabled={isSending || historyLoading}
+            disabled={isSending || historyLoading || preferencesLoading}
             maxLength={MAX_CHAT_INPUT_CHARS}
             aria-label="输入消息"
           />
@@ -459,10 +471,10 @@ export function CompanionConversationPage({
           <span className={styles.privacyStatus}>
             <LockKeyholeIcon className="size-3 shrink-0" aria-hidden="true" />
             {persistence.historyEnabled
-              ? "对话已加密同步，可随时在记录页删除"
+              ? (persistence.isSignedIn ? "对话已加密同步，可随时在记录页删除" : "游客记录已加密保存，可在本浏览器恢复和删除")
               : persistence.isSignedIn
                 ? "云端同步已关闭，本次对话仅临时保留"
-                : "未登录，对话仅临时保留"}
+                : "游客保存已关闭，本次对话仅临时保留"}
             <Link href="/privacy">隐私说明</Link>
           </span>
           {input.length >= MAX_CHAT_INPUT_CHARS * 0.8 ? (

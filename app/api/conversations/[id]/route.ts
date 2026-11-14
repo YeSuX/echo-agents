@@ -1,7 +1,8 @@
+import { checkConversationOrigin } from "@/lib/auth/conversation-origin"
 import { z } from "zod"
 
 import { apiError, PRIVATE_JSON_HEADERS } from "@/lib/api-response"
-import { authenticatedUserId } from "@/lib/auth/require-user"
+import { conversationOwnerId } from "@/lib/auth/conversation-owner"
 import { conversationKeyringFromEnv } from "@/lib/crypto/conversation-codec"
 import { ConversationRepository } from "@/lib/db/conversation-repository"
 import { getDb } from "@/lib/db/d1"
@@ -15,8 +16,8 @@ const updateSchema = z.object({
 })
 
 export async function GET(request: Request, context: RouteContext) {
-  const userId = await authenticatedUserId()
-  if (!userId) return apiError("AUTH_REQUIRED", "Sign in required", 401)
+  const userId = await conversationOwnerId()
+  if (!userId) return apiError("SESSION_REQUIRED", "Conversation session is unavailable; reload the page", 401)
 
   const { id } = await context.params
   const repository = new ConversationRepository(getDb())
@@ -42,8 +43,10 @@ export async function GET(request: Request, context: RouteContext) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const userId = await authenticatedUserId()
-  if (!userId) return apiError("AUTH_REQUIRED", "Sign in required", 401)
+  const originError = checkConversationOrigin(request)
+  if (originError) return originError
+  const userId = await conversationOwnerId()
+  if (!userId) return apiError("SESSION_REQUIRED", "Conversation session is unavailable; reload the page", 401)
 
   const parsed = updateSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) {
@@ -61,9 +64,11 @@ export async function PATCH(request: Request, context: RouteContext) {
   return Response.json({ ok: true })
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
-  const userId = await authenticatedUserId()
-  if (!userId) return apiError("AUTH_REQUIRED", "Sign in required", 401)
+export async function DELETE(request: Request, context: RouteContext) {
+  const originError = checkConversationOrigin(request)
+  if (originError) return originError
+  const userId = await conversationOwnerId()
+  if (!userId) return apiError("SESSION_REQUIRED", "Conversation session is unavailable; reload the page", 401)
 
   const { id } = await context.params
   const deleted = await new ConversationRepository(getDb()).deleteConversation(

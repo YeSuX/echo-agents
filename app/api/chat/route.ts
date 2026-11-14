@@ -1,6 +1,7 @@
+import { checkConversationOrigin } from "@/lib/auth/conversation-origin"
 import { NextRequest } from "next/server"
 import OpenAI from "openai"
-import { authenticatedUserId } from "@/lib/auth/require-user"
+import { conversationOwnerId } from "@/lib/auth/conversation-owner"
 import {
   conversationKeyringFromEnv,
   decryptConversationContent,
@@ -201,9 +202,9 @@ async function parseSavedChatRequest(
   const cleanContent = content.trim()
   if (!cleanContent || cleanContent.length > MAX_CHAT_MESSAGE_CHARS) return null
 
-  const userId = await authenticatedUserId()
+  const userId = await conversationOwnerId()
   if (!userId) {
-    return jsonErrorResponse("Sign in required", 401, { code: "AUTH_REQUIRED" })
+    return jsonErrorResponse("Conversation session is unavailable; reload the page", 401, { code: "SESSION_REQUIRED" })
   }
 
   const repository = new ConversationRepository(getDb())
@@ -478,6 +479,8 @@ async function streamDeepSeekWithModeration(
 }
 
 export async function POST(req: NextRequest) {
+  const originError = checkConversationOrigin(req)
+  if (originError) return originError
   const started = Date.now()
   const clientIp = getClientIp(req)
 

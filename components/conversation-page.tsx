@@ -1,5 +1,8 @@
 "use client"
 
+import { useAuth } from "@clerk/nextjs"
+import { VisitorHistoryClaim } from "@/components/visitor-history-claim"
+
 import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ArrowLeftIcon, SendIcon, SquareIcon } from "lucide-react"
@@ -61,7 +64,12 @@ function conversationUserText(messages: ConversationMessage[]): string {
 }
 
 
-export function ConversationPage({
+export function ConversationPage(props: ConversationPageProps) {
+  const { userId } = useAuth()
+  return <ConversationContent key={userId ?? "visitor"} {...props} />
+}
+
+function ConversationContent({
   guestId,
   guestName,
   initialMessages = [],
@@ -72,7 +80,7 @@ export function ConversationPage({
     mode: "guest",
     guestId,
   })
-  const { isSignedIn, resumeConversation } = persistence
+  const { isLoading: preferencesLoading, resumeConversation } = persistence
   const [loadedHistoryId, setLoadedHistoryId] = useState<string | undefined>(undefined)
   const historyLoading = Boolean(initialConversationId && loadedHistoryId !== initialConversationId)
   const [input, setInput] = useState("")
@@ -116,7 +124,7 @@ export function ConversationPage({
   }, [messages, streamingContent, streamingReasoning])
 
   useEffect(() => {
-    if (!initialConversationId || !isSignedIn) return
+    if (!initialConversationId || preferencesLoading) return
     let cancelled = false
     const historyAbort = new AbortController()
     void loadConversationHistory(initialConversationId, historyAbort.signal)
@@ -165,7 +173,7 @@ export function ConversationPage({
       cancelled = true
       historyAbort.abort()
     }
-  }, [guestId, initialConversationId, isSignedIn, resumeConversation])
+  }, [guestId, initialConversationId, preferencesLoading, resumeConversation])
 
   const handleSend = useCallback(async () => {
     const text = input.trim()
@@ -310,10 +318,14 @@ export function ConversationPage({
           </div>
         </div>
         <DeepSeekConfigTrigger />
+        <VisitorHistoryClaim blocked={isSending} onClaimed={() => {
+            if (initialConversationId && loadedHistoryId !== initialConversationId) window.location.reload()
+          }} />
         <ConversationSaveControl
           isSignedIn={persistence.isSignedIn}
           historyEnabled={persistence.historyEnabled}
           isLoading={persistence.isLoading}
+          loadError={persistence.error}
           onEnable={persistence.enableHistory}
           onDisable={persistence.disableHistory}
         />
@@ -322,12 +334,12 @@ export function ConversationPage({
       </header>
 
       {historyLoading && <p className="shrink-0 border-b px-4 py-2 text-sm text-muted-foreground" role="status">Loading the complete conversation history…</p>}
-      {error && (
+      {(error || persistence.error) && (
         <div
           className="shrink-0 border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-sm text-destructive"
           role="alert"
         >
-          {error}
+          {error || persistence.error}
         </div>
       )}
 
@@ -393,7 +405,7 @@ export function ConversationPage({
             onKeyDown={handleKeyDown}
             placeholder="输入你想问的…（例如 ta 的经历、态度或观点）"
             className="min-w-0"
-            disabled={isSending || historyLoading}
+            disabled={isSending || historyLoading || preferencesLoading}
             maxLength={MAX_CHAT_INPUT_CHARS}
             aria-label="输入你想问的问题"
           />

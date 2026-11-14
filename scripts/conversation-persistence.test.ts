@@ -154,7 +154,7 @@ describe("conversation migration", () => {
     )
     expect(getPreference.get("legacy-user")).toEqual({
       history_enabled: 1,
-      consent_version: CONVERSATION_PREFERENCE_VERSION,
+      consent_version: "conversation-storage-v2-default-on",
     })
     expect(getPreference.get("opted-out-user")).toEqual({
       history_enabled: 0,
@@ -213,6 +213,9 @@ describe("conversation repository ownership", () => {
       for (const statement of migration.split(";")) {
         if (statement.trim()) await database.prepare(statement).run()
       }
+      for (const statement of readFileSync(resolve(process.cwd(), "migrations/0004_visitor_conversation_owners.sql"), "utf8").split(";")) {
+        if (statement.trim()) await database.prepare(statement).run()
+      }
       const repository = new ConversationRepository(database)
 
       expect(await repository.initializePreferences("new-user", 10)).toEqual({
@@ -257,6 +260,9 @@ describe("conversation repository ownership", () => {
           "utf8",
         )
       for (const statement of migration.split(";")) {
+        if (statement.trim()) await database.prepare(statement).run()
+      }
+      for (const statement of readFileSync(resolve(process.cwd(), "migrations/0004_visitor_conversation_owners.sql"), "utf8").split(";")) {
         if (statement.trim()) await database.prepare(statement).run()
       }
       const repository = new ConversationRepository(database)

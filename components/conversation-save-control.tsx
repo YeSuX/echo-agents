@@ -1,6 +1,5 @@
 "use client"
 
-import { SignInButton } from "@clerk/nextjs"
 import { CloudIcon, CloudOffIcon, LoaderCircleIcon } from "lucide-react"
 import { useState } from "react"
 
@@ -19,6 +18,7 @@ type ConversationSaveControlProps = {
   isSignedIn: boolean
   historyEnabled: boolean
   isLoading: boolean
+  loadError?: string | null
   onEnable(): Promise<void>
   onDisable(): Promise<void>
 }
@@ -27,6 +27,7 @@ export function ConversationSaveControl({
   isSignedIn,
   historyEnabled,
   isLoading,
+  loadError,
   onEnable,
   onDisable,
 }: ConversationSaveControlProps) {
@@ -43,16 +44,11 @@ export function ConversationSaveControl({
     )
   }
 
-  if (!isSignedIn) {
-    return (
-      <SignInButton mode="modal">
-        <Button variant="ghost" size="sm" aria-label="登录后自动同步">
-          <CloudOffIcon className="size-4" />
-          <span className="hidden sm:inline">登录后自动同步</span>
-        </Button>
-      </SignInButton>
-    )
-  }
+  if (loadError) return <Button variant="ghost" size="sm" disabled>保存设置不可用</Button>
+
+  const statusLabel = historyEnabled
+    ? (isSignedIn ? "云端同步已开启" : "游客记录已开启")
+    : "对话保存已关闭"
 
   const apply = async () => {
     setSaving(true)
@@ -71,14 +67,14 @@ export function ConversationSaveControl({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" aria-label={historyEnabled ? "云端同步已开启" : "云端同步已关闭"}>
+        <Button variant="ghost" size="sm" aria-label={statusLabel}>
           {historyEnabled ? (
             <CloudIcon className="size-4 text-primary" />
           ) : (
             <CloudOffIcon className="size-4" />
           )}
           <span className="hidden sm:inline">
-            {historyEnabled ? "云端同步已开启" : "云端同步已关闭"}
+            {statusLabel}
           </span>
         </Button>
       </DialogTrigger>
@@ -95,7 +91,7 @@ export function ConversationSaveControl({
               </>
             ) : (
               <>
-                <span className="block">从下一条消息开始，对话会恢复加密同步到 Cloudflare D1，并关联当前 Clerk 账号。</span>
+                <span className="block">从下一条消息开始，对话会加密保存。游客记录限本浏览器恢复；登录后的新记录关联账号。</span>
                 <span className="block">当前临时对话不会自动上传，你可以随时关闭或删除记录。</span>
               </>
             )}

@@ -50,14 +50,16 @@ def main():
                     asset_path = chunk.group(1)
         print(f"PASS {path}: HTML and RSC cache hits, production Clerk instance")
 
-    for path in ("/api/conversations", "/api/me/conversation-preferences"):
-        status, _, body = fetch(path)
-        assert status == 401 and "AUTH_REQUIRED" in body, path
-        print(f"PASS {path}: anonymous access rejected")
+    status, _, body = fetch("/api/conversations")
+    assert status == 200 and json.loads(body)["conversations"] == [], "No-cookie history isolation"
+    print("PASS /api/conversations: empty without a session")
+    status, _, body = fetch("/api/me/conversation-preferences")
+    assert status == 401 and "SESSION_REQUIRED" in body, "Preference session guard"
+    print("PASS /api/me/conversation-preferences: session required")
 
     status, headers, _ = fetch("/conversations")
-    assert status == 307 and "/sign-in" in headers.get("Location", ""), "History access guard"
-    print("PASS /conversations: anonymous redirect")
+    assert status == 200, "History page is accessible to visitors"
+    print("PASS /conversations: visitor history page")
 
     status, headers, _ = fetch(asset_path)
     assert status == 200 and "immutable" in headers.get("Cache-Control", ""), "Asset cache header"

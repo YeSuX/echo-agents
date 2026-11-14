@@ -1,8 +1,9 @@
+import { checkConversationOrigin } from "@/lib/auth/conversation-origin"
 import { z } from "zod"
 
 import { GUESTS } from "@/data/guests"
 import { apiError, PRIVATE_JSON_HEADERS } from "@/lib/api-response"
-import { authenticatedUserId } from "@/lib/auth/require-user"
+import { conversationOwnerId } from "@/lib/auth/conversation-owner"
 import { ConversationRepository } from "@/lib/db/conversation-repository"
 import { getDb } from "@/lib/db/d1"
 import { toPublicConversation } from "@/lib/public-conversation"
@@ -13,8 +14,8 @@ const createSchema = z.discriminatedUnion("mode", [
 ])
 
 export async function GET() {
-  const userId = await authenticatedUserId()
-  if (!userId) return apiError("AUTH_REQUIRED", "Sign in required", 401)
+  const userId = await conversationOwnerId()
+  if (!userId) return Response.json({ conversations: [] }, { headers: PRIVATE_JSON_HEADERS })
 
   const conversations = await new ConversationRepository(getDb()).listConversations(
     userId,
@@ -26,8 +27,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const userId = await authenticatedUserId()
-  if (!userId) return apiError("AUTH_REQUIRED", "Sign in required", 401)
+  const originError = checkConversationOrigin(request)
+  if (originError) return originError
+  const userId = await conversationOwnerId()
+  if (!userId) return apiError("SESSION_REQUIRED", "Conversation session is unavailable; reload the page", 401)
 
   const parsed = createSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) {

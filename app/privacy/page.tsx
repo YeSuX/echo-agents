@@ -11,7 +11,7 @@ export default function PrivacyPage() {
 
       <section className="mt-8 space-y-6 text-sm leading-relaxed">
         <div>
-          <h2 className="text-lg font-medium">1. 匿名不留痕，登录后默认同步</h2>
+          <h2 className="text-lg font-medium">1. 游客加密保存，登录后可跨设备恢复</h2>
           <p className="mt-2 text-muted-foreground">
             你的隐私由你掌控。
           </p>
@@ -50,10 +50,10 @@ export default function PrivacyPage() {
               <strong>传输加密</strong>：我们采用标准的工业级传输加密技术（SSL/HTTPS），确保你的信息在发送到我们服务器的过程中不会被截获。
             </li>
             <li>
-              <strong>存储加密</strong>：云端对话正文在写入 Cloudflare D1 前使用应用层加密；身份由 Clerk 管理，数据库不复制你的邮箱、姓名或头像。
+              <strong>存储加密</strong>：所有保存的对话正文在写入 Cloudflare D1 前使用应用层加密。游客凭证使用 HttpOnly Cookie，数据库仅保存其哈希；注册账号及密码由 Clerk 管理，D1 不保存密码、邮箱、姓名或头像。
             </li>
             <li>
-              <strong>用途限制</strong>：留存的数据仅限用于影像性暴力监测与政策倡导，绝不用于商业分析、画像建模或交给任何非法律/公益背景的第三方。
+              <strong>用途限制</strong>：对话记录用于恢复历史和继续聊天，不用于广告画像。用于监测或公益倡导的匿名故事投稿采用独立授权和脱敏流程。
             </li>
           </ul>
         </div>
@@ -61,13 +61,13 @@ export default function PrivacyPage() {
         <div>
           <h2 className="text-lg font-medium">4. 你随时可以「反悔」</h2>
           <p className="mt-2 text-muted-foreground">
-            云端对话可在「对话记录」中立即删除；故事投稿可随时联系我们撤回。活动数据库删除后内容会立即不可访问，Cloudflare 的恢复备份会在平台保留窗口内自动过期，最长可能为 30 天。
+            游客和账号对话都可在「对话记录」中删除。游客凭证每次打开对话页续期至 30 天，清除 Cookie 或凭证过期后无法找回；过期游客数据会在后续游客会话初始化时分批清理。用户名密码账号可选择添加邮箱，没有邮箱时无法使用邮箱找回密码。故事投稿可随时联系我们撤回。活动数据库删除后内容会立即不可访问，Cloudflare 的恢复备份会在平台保留窗口内自动过期，最长可能为 30 天。
           </p>
         </div>
 
         <div className="rounded-lg border bg-muted/30 p-4">
           <p className="text-muted-foreground">
-            每一个留在这里的故事，都是反击影像性暴力的证据。我们收集这些信息，是为了告诉社会：这些伤害正在发生，且必须停止。如果你还没准备好，请放心地使用隐私模式；如果你准备好了，你的勇敢将帮助到更多的人。
+            每一个留在这里的故事，都是反击影像性暴力的证据。我们收集这些信息，是为了告诉社会：这些伤害正在发生，且必须停止。如果你还没准备好，可以在聊天页关闭未来保存；如果你准备好了，你的勇敢将帮助到更多的人。
           </p>
         </div>
       </section>

@@ -10,6 +10,11 @@ export type ConversationPreferences = {
   consentedAt: number | null
 }
 
+export type VisitorOwner = {
+  id: string
+  expiresAt: number
+}
+
 export type ConversationRecord = {
   id: string
   ownerId: string
@@ -131,32 +136,96 @@ const TURN_COLUMNS = `
 export class ConversationRepository {
   constructor(private readonly db: D1Database) {}
 
+  async findVisitor(tokenHash: string, now = Date.now()): Promise<VisitorOwner | null> {
+    const row = await this.db.prepare(
+      `SELECT id, visitor_expires_at AS expiresAt FROM conversation_owners
+       WHERE kind = 'visitor' AND visitor_token_hash = ? AND visitor_expires_at > ?`,
+    ).bind(tokenHash, now).first<VisitorOwner>()
+    return row
+  }
+
+  async createVisitor(tokenHash: string, expiresAt: number, now = Date.now()): Promise<VisitorOwner> {
+    const id = `visitor_${crypto.randomUUID()}`
+    await this.db.prepare(
+      `INSERT INTO conversation_owners
+       (id, kind, visitor_token_hash, visitor_expires_at, history_enabled,
+        consent_version, consented_at, created_at, updated_at)
+       VALUES (?, 'visitor', ?, ?, 1, ?, ?, ?, ?)`,
+    ).bind(id, tokenHash, expiresAt, CONVERSATION_PREFERENCE_VERSION, now, now, now).run()
+    return { id, expiresAt }
+  }
+
+  async refreshVisitor(id: string, expiresAt: number, now = Date.now()): Promise<boolean> {
+    const result = await this.db.prepare(
+      `UPDATE conversation_owners SET visitor_expires_at = ?, updated_at = ?
+       WHERE id = ? AND kind = 'visitor' AND visitor_expires_at > ?`,
+    ).bind(expiresAt, now, id, now).run()
+    return result.meta.changes === 1
+  }
+
+  async cleanupExpiredVisitors(now = Date.now()): Promise<void> {
+    await this.db.prepare(
+      `DELETE FROM conversation_owners WHERE id IN (
+         SELECT id FROM conversation_owners
+         WHERE kind = 'visitor' AND visitor_expires_at <= ? LIMIT 100
+       )`,
+    ).bind(now).run()
+  }
+
+  async claimVisitor(visitorId: string, accountId: string, now = Date.now()): Promise<boolean> {
+    // A pending turn blocks the entire transfer. The batch serializes against
+    // beginTurn, so an in-flight response cannot finish under a different owner.
+    await this.db.batch([
+      this.db.prepare(
+        `UPDATE conversations SET owner_id = ?, updated_at = ?
+         WHERE owner_id = ?
+           AND EXISTS (SELECT 1 FROM conversation_owners
+                       WHERE id = ? AND kind = 'visitor' AND visitor_expires_at > ?)
+           AND EXISTS (SELECT 1 FROM conversation_owners WHERE id = ? AND kind = 'account')
+           AND NOT EXISTS (
+             SELECT 1 FROM conversation_turns t JOIN conversations c ON c.id = t.conversation_id
+             WHERE c.owner_id = ? AND t.status = 'pending'
+           )`,
+      ).bind(accountId, now, visitorId, visitorId, now, accountId, visitorId),
+      this.db.prepare(
+        `DELETE FROM conversation_owners WHERE id = ? AND kind = 'visitor'
+         AND visitor_expires_at > ?
+         AND EXISTS (SELECT 1 FROM conversation_owners WHERE id = ? AND kind = 'account')
+         AND NOT EXISTS (SELECT 1 FROM conversations WHERE owner_id = ?)`,
+      ).bind(visitorId, now, accountId, visitorId),
+    ])
+    const remaining = await this.db.prepare(
+      "SELECT id FROM conversation_owners WHERE id = ?",
+    ).bind(visitorId).first()
+    return remaining === null
+  }
+
   async initializePreferences(
-    userId: string,
+    ownerId: string,
     now = Date.now(),
   ): Promise<ConversationPreferences> {
     await this.db
       .prepare(
-        `INSERT INTO app_users (
-           clerk_user_id, history_enabled, consent_version,
+        `INSERT INTO conversation_owners (
+           id, history_enabled, consent_version,
            consented_at, created_at, updated_at
          ) VALUES (?, 1, ?, ?, ?, ?)
-         ON CONFLICT(clerk_user_id) DO NOTHING`,
+         ON CONFLICT(id) DO NOTHING`,
       )
-      .bind(userId, CONVERSATION_PREFERENCE_VERSION, now, now, now)
+      .bind(ownerId, CONVERSATION_PREFERENCE_VERSION, now, now, now)
       .run()
 
-    return this.getPreferences(userId)
+    return this.getPreferences(ownerId)
   }
 
-  async getPreferences(userId: string): Promise<ConversationPreferences> {
+  async getPreferences(ownerId: string): Promise<ConversationPreferences> {
     const row = await this.db
       .prepare(
         `SELECT history_enabled, consent_version, consented_at
-         FROM app_users
-         WHERE clerk_user_id = ?`,
+         FROM conversation_owners
+         WHERE id = ?`,
       )
-      .bind(userId)
+      .bind(ownerId)
       .first<PreferencesRow>()
 
     return row
@@ -169,31 +238,31 @@ export class ConversationRepository {
   }
 
   async setPreferences(
-    userId: string,
+    ownerId: string,
     historyEnabled: boolean,
     consentVersion: string | null,
     now = Date.now(),
   ): Promise<ConversationPreferences> {
     await this.db
       .prepare(
-        `INSERT INTO app_users (
-           clerk_user_id, history_enabled, consent_version,
+        `INSERT INTO conversation_owners (
+           id, history_enabled, consent_version,
            consented_at, created_at, updated_at
          ) VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT(clerk_user_id) DO UPDATE SET
+         ON CONFLICT(id) DO UPDATE SET
            history_enabled = excluded.history_enabled,
            consent_version = CASE
              WHEN excluded.history_enabled = 1 THEN excluded.consent_version
-             ELSE app_users.consent_version
+             ELSE conversation_owners.consent_version
            END,
            consented_at = CASE
              WHEN excluded.history_enabled = 1 THEN excluded.consented_at
-             ELSE app_users.consented_at
+             ELSE conversation_owners.consented_at
            END,
            updated_at = excluded.updated_at`,
       )
       .bind(
-        userId,
+        ownerId,
         historyEnabled ? 1 : 0,
         consentVersion,
         historyEnabled ? now : null,
@@ -202,11 +271,11 @@ export class ConversationRepository {
       )
       .run()
 
-    return this.getPreferences(userId)
+    return this.getPreferences(ownerId)
   }
 
   async createConversation(
-    userId: string,
+    ownerId: string,
     input: { id: string; mode: ConversationMode; guestId: string | null },
     now = Date.now(),
   ): Promise<ConversationRecord | null> {
@@ -216,19 +285,19 @@ export class ConversationRepository {
            id, owner_id, mode, guest_id, status,
            created_at, updated_at, last_message_at
          )
-         SELECT ?, u.clerk_user_id, ?, ?, 'active', ?, ?, NULL
-         FROM app_users u
-         WHERE u.clerk_user_id = ? AND u.history_enabled = 1`,
+         SELECT ?, u.id, ?, ?, 'active', ?, ?, NULL
+         FROM conversation_owners u
+         WHERE u.id = ? AND u.history_enabled = 1`,
       )
-      .bind(input.id, input.mode, input.guestId, now, now, userId)
+      .bind(input.id, input.mode, input.guestId, now, now, ownerId)
       .run()
 
     if (result.meta.changes !== 1) return null
-    return this.getConversation(userId, input.id)
+    return this.getConversation(ownerId, input.id)
   }
 
   async getConversation(
-    userId: string,
+    ownerId: string,
     conversationId: string,
   ): Promise<ConversationRecord | null> {
     const row = await this.db
@@ -237,13 +306,13 @@ export class ConversationRepository {
          FROM conversations
          WHERE id = ? AND owner_id = ?`,
       )
-      .bind(conversationId, userId)
+      .bind(conversationId, ownerId)
       .first<ConversationRow>()
     return row ? toConversation(row) : null
   }
 
   async listConversations(
-    userId: string,
+    ownerId: string,
     limit = 50,
   ): Promise<ConversationRecord[]> {
     const result = await this.db
@@ -254,13 +323,13 @@ export class ConversationRepository {
          ORDER BY updated_at DESC, id DESC
          LIMIT ?`,
       )
-      .bind(userId, limit)
+      .bind(ownerId, limit)
       .all<ConversationRow>()
     return result.results.map(toConversation)
   }
 
   async setConversationStatus(
-    userId: string,
+    ownerId: string,
     conversationId: string,
     status: ConversationStatus,
     now = Date.now(),
@@ -271,39 +340,39 @@ export class ConversationRepository {
          SET status = ?, updated_at = ?
          WHERE id = ? AND owner_id = ?`,
       )
-      .bind(status, now, conversationId, userId)
+      .bind(status, now, conversationId, ownerId)
       .run()
     return result.meta.changes > 0
   }
 
   async deleteConversation(
-    userId: string,
+    ownerId: string,
     conversationId: string,
   ): Promise<boolean> {
     const result = await this.db
       .prepare(`DELETE FROM conversations WHERE id = ? AND owner_id = ?`)
-      .bind(conversationId, userId)
+      .bind(conversationId, ownerId)
       .run()
     return result.meta.changes > 0
   }
 
-  async deleteAllConversations(userId: string): Promise<number> {
+  async deleteAllConversations(ownerId: string): Promise<number> {
     const result = await this.db
       .prepare(`DELETE FROM conversations WHERE owner_id = ?`)
-      .bind(userId)
+      .bind(ownerId)
       .run()
     return result.meta.changes
   }
 
-  async deleteUser(userId: string): Promise<void> {
+  async deleteUser(ownerId: string): Promise<void> {
     await this.db
-      .prepare(`DELETE FROM app_users WHERE clerk_user_id = ?`)
-      .bind(userId)
+      .prepare(`DELETE FROM conversation_owners WHERE id = ? AND kind = 'account'`)
+      .bind(ownerId)
       .run()
   }
 
   async findTurnByClientMessageId(
-    userId: string,
+    ownerId: string,
     conversationId: string,
     clientMessageId: string,
   ): Promise<EncryptedTurnRecord | null> {
@@ -318,13 +387,13 @@ export class ConversationRepository {
              WHERE c.id = t.conversation_id AND c.owner_id = ?
            )`,
       )
-      .bind(conversationId, clientMessageId, userId)
+      .bind(conversationId, clientMessageId, ownerId)
       .first<TurnRow>()
     return row ? toTurn(row) : null
   }
 
   async beginTurn(
-    userId: string,
+    ownerId: string,
     input: {
       id: string
       conversationId: string
@@ -345,7 +414,7 @@ export class ConversationRepository {
            )
            SELECT ?, c.id, ?, ?, ?, ?, 'pending', NULL, ?, NULL
            FROM conversations c
-           JOIN app_users u ON u.clerk_user_id = c.owner_id
+           JOIN conversation_owners u ON u.id = c.owner_id
            WHERE c.id = ? AND c.owner_id = ?
              AND c.status = 'active' AND u.history_enabled = 1`,
         )
@@ -357,7 +426,7 @@ export class ConversationRepository {
           input.encryptionKeyVersion,
           now,
           input.conversationId,
-          userId,
+          ownerId,
         ),
       this.db
         .prepare(
@@ -365,18 +434,18 @@ export class ConversationRepository {
            SET updated_at = ?, last_message_at = ?
            WHERE id = ? AND owner_id = ? AND status = 'active'
              AND EXISTS (
-               SELECT 1 FROM app_users u
-               WHERE u.clerk_user_id = conversations.owner_id
+               SELECT 1 FROM conversation_owners u
+               WHERE u.id = conversations.owner_id
                  AND u.history_enabled = 1
              )`,
         )
-        .bind(now, now, input.conversationId, userId),
+        .bind(now, now, input.conversationId, ownerId),
     ])
     return insertResult.meta.changes === 1
   }
 
   async completeTurn(
-    userId: string,
+    ownerId: string,
     input: {
       turnId: string
       conversationId: string
@@ -403,14 +472,14 @@ export class ConversationRepository {
         now,
         input.turnId,
         input.conversationId,
-        userId,
+        ownerId,
       )
       .run()
     return result.meta.changes === 1
   }
 
   async markTurnIncomplete(
-    userId: string,
+    ownerId: string,
     input: {
       turnId: string
       conversationId: string
@@ -436,13 +505,13 @@ export class ConversationRepository {
         now,
         input.turnId,
         input.conversationId,
-        userId,
+        ownerId,
       )
       .run()
   }
 
   async listTurns(
-    userId: string,
+    ownerId: string,
     conversationId: string,
     limit = 100,
     offset = 0,
@@ -459,13 +528,13 @@ export class ConversationRepository {
          ORDER BY t.created_at ASC, t.id ASC
          LIMIT ? OFFSET ?`,
       )
-      .bind(conversationId, userId, limit, offset)
+      .bind(conversationId, ownerId, limit, offset)
       .all<TurnRow>()
     return result.results.map(toTurn)
   }
 
   async listTurnsForContext(
-    userId: string,
+    ownerId: string,
     conversationId: string,
     recentLimit = 24,
   ): Promise<EncryptedTurnRecord[]> {
@@ -485,7 +554,7 @@ export class ConversationRepository {
            ORDER BY t.created_at ASC, t.id ASC
            LIMIT 1`,
         )
-        .bind(conversationId, userId),
+        .bind(conversationId, ownerId),
       this.db
         .prepare(
           `SELECT ${TURN_COLUMNS}
@@ -494,7 +563,7 @@ export class ConversationRepository {
            ORDER BY t.created_at DESC, t.id DESC
            LIMIT ?`,
         )
-        .bind(conversationId, userId, recentLimit),
+        .bind(conversationId, ownerId, recentLimit),
     ])
     const turns = [
       ...firstResult.results,

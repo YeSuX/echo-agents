@@ -13,6 +13,7 @@
     "test:deepseek": "bun test scripts/deepseek-stream.test.ts",
     "test:prompts": "node --import tsx scripts/companion-style.test.ts",
     "test:stories": "bun test scripts/story-contribution.test.ts",
+    "test:chat-scroll": "playwright test scripts/chat-scroll.e2e.spec.ts --workers=1 --reporter=line",
     "test:safety:e2e": "tsx scripts/safety-guardrails.e2e.test.ts",
     "test:legal-golden": "tsx scripts/retrieve-sop.test.ts && tsx scripts/legal-golden-regression.test.ts",
     "test:retrieve-sop": "tsx scripts/retrieve-sop.test.ts",
@@ -54,6 +55,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "1.58.2",
     "@tailwindcss/postcss": "^4",
     "@types/bun": "^1.4.0",
     "@types/node": "^20",

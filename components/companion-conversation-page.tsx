@@ -124,7 +124,8 @@ export function CompanionConversationPage({
   const hasConversation = messages.length > 1 || isSending
 
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "auto" })
+    const viewport = scrollRef.current
+    viewport?.scrollTo({ top: viewport.scrollHeight, behavior: "auto" })
   }, [messages, streamingContent, streamingReasoning])
 
   useEffect(() => {
@@ -371,7 +372,7 @@ export function CompanionConversationPage({
         </div>
       )}
 
-      <div className={styles.conversationScroll}>
+      <div ref={scrollRef} className={styles.conversationScroll}>
         <main
           className={cn(styles.conversationMain, !hasConversation && styles.initialMain)}
           aria-live="polite"
@@ -410,7 +411,6 @@ export function CompanionConversationPage({
               )}
             </div>
           )}
-          <div ref={scrollRef} />
         </main>
       </div>
 

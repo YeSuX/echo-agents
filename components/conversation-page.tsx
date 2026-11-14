@@ -111,7 +111,8 @@ export function ConversationPage({
   }
 
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" })
+    const viewport = scrollRef.current
+    viewport?.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" })
   }, [messages, streamingContent, streamingReasoning])
 
   useEffect(() => {
@@ -351,7 +352,7 @@ export function ConversationPage({
         </div>
       )}
 
-      <ScrollArea className="min-h-0 flex-1">
+      <ScrollArea viewportRef={scrollRef} className="min-h-0 flex-1">
         <main
           className="flex flex-col px-4 py-4"
           aria-live="polite"
@@ -381,7 +382,6 @@ export function ConversationPage({
               />
             )}
           </div>
-          <div ref={scrollRef} />
         </main>
       </ScrollArea>
 

@@ -50,10 +50,9 @@ test("a bootstrap failure cannot silently fall back to an unsaved chat", async (
   page.on("request", request => { if (new URL(request.url()).pathname === "/api/chat") chatRequests += 1 })
   await page.goto(`${baseUrl}/support`)
   const input = page.getByRole("textbox")
-  await expect(input).toBeEnabled()
-  await input.fill("Synthetic failure fixture")
-  await input.press("Enter")
   await expect(page.getByRole("alert").filter({ hasText: "Synthetic persistence failure" })).toContainText("Synthetic persistence failure")
+  await expect(input).toBeDisabled()
+  await expect(page.getByRole("button", { name: "重新加载保存设置", exact: true })).toBeEnabled()
   expect(chatRequests).toBe(0)
 })
 

@@ -20,6 +20,8 @@
     "test:retrieve-sop": "tsx scripts/retrieve-sop.test.ts",
     "test:persistence": "bun test scripts/conversation-persistence.test.ts scripts/anonymous-persistence.test.ts",
     "test:anonymous-history": "playwright test scripts/anonymous-history.e2e.spec.ts --workers=1 --reporter=line",
+    "test:persistence-startup": "playwright test scripts/persistence-startup.e2e.spec.ts --workers=1 --reporter=line",
+    "test:canonical-origin": "bun test scripts/canonical-origin.test.ts",
     "build:cloudflare": "opennextjs-cloudflare build",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",

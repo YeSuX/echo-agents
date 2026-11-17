@@ -13,6 +13,7 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("base_url", nargs="?", default="http://localhost:8787")
+    parser.add_argument("--clerk-host", default="clerk.cooper-ai.org", help="Expected production Clerk frontend hostname")
     args = parser.parse_args()
     base = args.base_url.rstrip("/")
     url = urllib.parse.urlsplit(base)
@@ -43,7 +44,7 @@ def main():
             assert "pk_test_" not in body, "Development Clerk key in production artifact"
             if not rsc:
                 assert "pk_live_" in body, "Production Clerk public key missing"
-                assert "clerk.cooper-ai.org/npm/" in body, "Unexpected Clerk frontend instance"
+                assert f"https://{args.clerk_host}/npm/" in body, "Unexpected Clerk frontend instance"
                 if path == "/":
                     chunk = re.search(r'src="(/_next/static/chunks/[^\"]+\.js)"', body)
                     assert chunk, "No application chunk found"

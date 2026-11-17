@@ -90,7 +90,7 @@ and `/api/conversations` without a visitor cookie returns an empty list.
 Visitor history requires the HttpOnly visitor cookie; account history uses Clerk.
 
 ```bash
-python3 scripts/check-cloudflare-auth.py https://echo-agents.cooper-ai.org
+python3 scripts/check-cloudflare-auth.py https://rayincare.org --clerk-host clerk.rayincare.org
 ```
 
 Use the OpenNext preview/deploy commands so the prerendered cache is populated

@@ -80,6 +80,7 @@ function ConversationContent({
     guestId,
   })
   const { isLoading: preferencesLoading, resumeConversation } = persistence
+  const persistenceUnavailable = preferencesLoading || Boolean(persistence.error)
   const [loadedHistoryId, setLoadedHistoryId] = useState<string | undefined>(undefined)
   const historyLoading = Boolean(initialConversationId && loadedHistoryId !== initialConversationId)
   const [input, setInput] = useState("")
@@ -122,7 +123,7 @@ function ConversationContent({
   }, [messages, streamingContent])
 
   useEffect(() => {
-    if (!initialConversationId || preferencesLoading) return
+    if (!initialConversationId || persistenceUnavailable) return
     let cancelled = false
     const historyAbort = new AbortController()
     void loadConversationHistory(initialConversationId, historyAbort.signal)
@@ -171,11 +172,11 @@ function ConversationContent({
       cancelled = true
       historyAbort.abort()
     }
-  }, [guestId, initialConversationId, preferencesLoading, resumeConversation])
+  }, [guestId, initialConversationId, persistenceUnavailable, resumeConversation])
 
   const handleSend = useCallback(async () => {
     const text = input.trim()
-    if (!text || isSending || historyLoading) return
+    if (!text || isSending || historyLoading || persistenceUnavailable) return
     setInput("")
     setError(null)
     const userMsg: ConversationMessage = {
@@ -269,7 +270,7 @@ function ConversationContent({
       setIsSending(false)
       abortRef.current = null
     }
-  }, [guestId, input, isSending, historyLoading, messages, deepseekRequestFields, persistence])
+  }, [guestId, input, isSending, historyLoading, persistenceUnavailable, messages, deepseekRequestFields, persistence])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -318,6 +319,7 @@ function ConversationContent({
           historyEnabled={persistence.historyEnabled}
           isLoading={persistence.isLoading}
           loadError={persistence.error}
+          onRetry={persistence.retryPreferences}
           onEnable={persistence.enableHistory}
           onDisable={persistence.disableHistory}
         />
@@ -395,7 +397,7 @@ function ConversationContent({
             onKeyDown={handleKeyDown}
             placeholder="输入你想问的…（例如 ta 的经历、态度或观点）"
             className="min-w-0"
-            disabled={isSending || historyLoading || preferencesLoading}
+            disabled={isSending || historyLoading || persistenceUnavailable}
             maxLength={MAX_CHAT_INPUT_CHARS}
             aria-label="输入你想问的问题"
           />
@@ -414,7 +416,7 @@ function ConversationContent({
               type="button"
               size="icon"
               onClick={() => void handleSend()}
-              disabled={!input.trim() || historyLoading}
+              disabled={!input.trim() || historyLoading || persistenceUnavailable}
               aria-label="发送"
             >
               <SendIcon className="size-4" />

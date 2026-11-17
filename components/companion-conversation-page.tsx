@@ -99,6 +99,7 @@ function CompanionConversationContent({
     mode: "companion",
   })
   const { isLoading: preferencesLoading, resumeConversation } = persistence
+  const persistenceUnavailable = preferencesLoading || Boolean(persistence.error)
   const [loadedHistoryId, setLoadedHistoryId] = useState<string | undefined>(undefined)
   const historyLoading = Boolean(initialConversationId && loadedHistoryId !== initialConversationId)
   const [input, setInput] = useState("")
@@ -135,7 +136,7 @@ function CompanionConversationContent({
   }, [messages, streamingContent])
 
   useEffect(() => {
-    if (!initialConversationId || preferencesLoading) return
+    if (!initialConversationId || persistenceUnavailable) return
     let cancelled = false
     const historyAbort = new AbortController()
     void loadConversationHistory(initialConversationId, historyAbort.signal)
@@ -179,12 +180,12 @@ function CompanionConversationContent({
       cancelled = true
       historyAbort.abort()
     }
-  }, [initialConversationId, preferencesLoading, resumeConversation])
+  }, [initialConversationId, persistenceUnavailable, resumeConversation])
 
   const sendMessage = useCallback(
     async (rawText: string) => {
       const text = rawText.trim()
-      if (!text || isSending || historyLoading) return
+      if (!text || isSending || historyLoading || persistenceUnavailable) return
       setError(null)
       const userMsg: ConversationMessage = {
         id: `user-${Date.now()}`,
@@ -279,15 +280,15 @@ function CompanionConversationContent({
         abortRef.current = null
       }
     },
-    [isSending, historyLoading, messages, deepseekRequestFields, persistence],
+    [isSending, historyLoading, persistenceUnavailable, messages, deepseekRequestFields, persistence],
   )
 
   const handleSend = useCallback(() => {
     const t = input.trim()
-    if (!t || isSending || historyLoading) return
+    if (!t || isSending || historyLoading || persistenceUnavailable) return
     setInput("")
     void sendMessage(t)
-  }, [input, isSending, historyLoading, sendMessage])
+  }, [input, isSending, historyLoading, persistenceUnavailable, sendMessage])
 
   const handleQuickPick = useCallback(
     (text: string) => {
@@ -350,6 +351,7 @@ function CompanionConversationContent({
             historyEnabled={persistence.historyEnabled}
             isLoading={persistence.isLoading}
             loadError={persistence.error}
+            onRetry={persistence.retryPreferences}
             onEnable={persistence.enableHistory}
             onDisable={persistence.disableHistory}
           />
@@ -420,7 +422,7 @@ function CompanionConversationContent({
       <div className={styles.composerArea}>
         {!hasConversation && (
           <section className={styles.quickStart} aria-label="选择一个常见问题开始">
-            <QuickReplies replies={COMPANION_QUICK_REPLIES} onPick={handleQuickPick} disabled={isSending || historyLoading || preferencesLoading} />
+            <QuickReplies replies={COMPANION_QUICK_REPLIES} onPick={handleQuickPick} disabled={isSending || historyLoading || persistenceUnavailable} />
           </section>
         )}
         <div className={styles.composer}>
@@ -431,7 +433,7 @@ function CompanionConversationContent({
             placeholder="你可以从任何地方开始说起…"
             className={styles.messageInput}
             rows={1}
-            disabled={isSending || historyLoading || preferencesLoading}
+            disabled={isSending || historyLoading || persistenceUnavailable}
             maxLength={MAX_CHAT_INPUT_CHARS}
             aria-label="输入消息"
           />
@@ -450,7 +452,7 @@ function CompanionConversationContent({
               type="button"
               className={styles.sendButton}
               onClick={handleSend}
-              disabled={!input.trim() || historyLoading}
+              disabled={!input.trim() || historyLoading || persistenceUnavailable}
               aria-label="发送消息"
               title="发送消息"
             >

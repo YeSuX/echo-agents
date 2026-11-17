@@ -19,6 +19,7 @@ type ConversationSaveControlProps = {
   historyEnabled: boolean
   isLoading: boolean
   loadError?: string | null
+  onRetry(): void
   onEnable(): Promise<void>
   onDisable(): Promise<void>
 }
@@ -28,6 +29,7 @@ export function ConversationSaveControl({
   historyEnabled,
   isLoading,
   loadError,
+  onRetry,
   onEnable,
   onDisable,
 }: ConversationSaveControlProps) {
@@ -44,7 +46,7 @@ export function ConversationSaveControl({
     )
   }
 
-  if (loadError) return <Button variant="ghost" size="sm" disabled>保存设置不可用</Button>
+  if (loadError) return <Button variant="outline" size="sm" onClick={onRetry} aria-label="重新加载保存设置">刷新重试</Button>
 
   const statusLabel = historyEnabled
     ? (isSignedIn ? "云端同步已开启" : "游客记录已开启")

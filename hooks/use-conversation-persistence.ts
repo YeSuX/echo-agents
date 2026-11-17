@@ -5,37 +5,11 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import { CONVERSATION_PREFERENCE_VERSION } from "@/lib/conversation-preferences"
 import { parseFetchErrorBody } from "@/lib/json-parse"
-
-type PreferencesResponse = {
-  historyEnabled: boolean
-  consentVersion: string | null
-  consentedAt: number | null
-}
+import { AUTH_INITIALIZATION_ERROR, AUTH_INITIALIZATION_TIMEOUT_MS, loadConversationPreferences, type PreferencesResponse } from "@/lib/conversation-preferences-loader"
 
 async function responseError(response: Response): Promise<Error> {
   const body = await response.text()
   return new Error(parseFetchErrorBody(body) ?? `Request failed ${response.status}`)
-}
-
-// Reuse an in-flight bootstrap across Strict Mode remounts. Two first-visit
-// responses must not overwrite each other's visitor credential in the browser.
-const bootstraps = new Map<string, Promise<PreferencesResponse>>()
-function loadPreferences(identity: string, signedIn: boolean): Promise<PreferencesResponse> {
-  const existing = bootstraps.get(identity)
-  if (existing) return existing
-  const fetchPreferences = () => fetch(signedIn ? "/api/me/conversation-preferences" : "/api/visitor-session", {
-    method: signedIn ? "GET" : "POST",
-    cache: "no-store",
-  }).then(async response => {
-    if (!response.ok) throw await responseError(response)
-    return await response.json() as PreferencesResponse
-  })
-  const operation = !signedIn && navigator.locks
-    ? navigator.locks.request("rayin-visitor-bootstrap", fetchPreferences)
-    : fetchPreferences()
-  const pending = Promise.resolve(operation).finally(() => { bootstraps.delete(identity) })
-  bootstraps.set(identity, pending)
-  return pending
 }
 
 export function useConversationPersistence(options: {
@@ -44,6 +18,8 @@ export function useConversationPersistence(options: {
 }) {
   const { isLoaded: authLoaded, isSignedIn, userId } = useAuth()
   const identity = userId ?? "visitor"
+  const [authTimedOut, setAuthTimedOut] = useState(false)
+  const [loadAttempt, setLoadAttempt] = useState(0)
   const [state, setState] = useState<{
     identity: string
     preferences: PreferencesResponse | null
@@ -51,20 +27,28 @@ export function useConversationPersistence(options: {
   } | null>(null)
   const conversationRef = useRef<{ identity: string; id: string } | null>(null)
   const preferences = state?.identity === identity ? state.preferences : null
-  const error = state?.identity === identity ? state.error : null
-  const isLoading = !authLoaded || (!preferences && !error)
+  const error = !authLoaded && authTimedOut
+    ? AUTH_INITIALIZATION_ERROR
+    : state?.identity === identity ? state.error : null
+  const isLoading = !error && (!authLoaded || !preferences)
   const historyEnabled = preferences?.historyEnabled ?? false
+
+  useEffect(() => {
+    if (authLoaded) return
+    const timer = setTimeout(() => setAuthTimedOut(true), AUTH_INITIALIZATION_TIMEOUT_MS)
+    return () => clearTimeout(timer)
+  }, [authLoaded])
 
   useEffect(() => {
     if (!authLoaded) return
     let cancelled = false
-    void loadPreferences(identity, Boolean(isSignedIn)).then(preferences => {
+    void loadConversationPreferences(identity, Boolean(isSignedIn)).then(preferences => {
       if (!cancelled) setState({ identity, preferences, error: null })
     }).catch(cause => {
       if (!cancelled) setState({ identity, preferences: null, error: cause instanceof Error ? cause.message : "无法读取保存设置" })
     })
     return () => { cancelled = true }
-  }, [authLoaded, identity, isSignedIn])
+  }, [authLoaded, identity, isSignedIn, loadAttempt])
 
   const updateHistoryEnabled = useCallback(async (enabled: boolean) => {
     const response = await fetch("/api/me/conversation-preferences", {
@@ -103,7 +87,17 @@ export function useConversationPersistence(options: {
     conversationRef.current = { identity, id: conversationId }
   }, [identity])
 
+  const retryPreferences = useCallback(() => {
+    if (!authLoaded) {
+      window.location.reload()
+      return
+    }
+    setState(null)
+    setLoadAttempt(attempt => attempt + 1)
+  }, [authLoaded])
+
   return {
+    retryPreferences,
     authLoaded,
     isSignedIn: Boolean(isSignedIn),
     historyEnabled,

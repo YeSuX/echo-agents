@@ -24,14 +24,25 @@ export default function config(phase: string): NextConfig {
     );
   }
 
-  if (phase === PHASE_PRODUCTION_BUILD && 
-    process.env.ALLOW_CLERK_TEST_KEYS !== "1"
-  ) {
+  const isProductionBranch =
+    process.env.WORKERS_CI === "1" &&
+    process.env.WORKERS_CI_BRANCH === "main";
+  const allowPreviewKeys =
+    !isProductionBranch && process.env.ALLOW_CLERK_TEST_KEYS === "1";
+
+  if (phase === PHASE_PRODUCTION_BUILD && !allowPreviewKeys) {
     if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.startsWith("pk_live_")) {
       throw new Error(
         "Production builds require a Clerk production publishable key (pk_live_). " +
           "Use NODE_ENV=production to load .env.production.local with Bun.",
       );
+    }
+    const frontend = Buffer.from(
+      process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.slice("pk_live_".length),
+      "base64",
+    ).toString("utf8");
+    if (isProductionBranch && frontend !== "clerk.rayincare.org$") {
+      throw new Error("The production branch must use clerk.rayincare.org.");
     }
     if (
       process.env.CLERK_SECRET_KEY &&

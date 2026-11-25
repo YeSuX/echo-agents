@@ -83,8 +83,10 @@ bunx wrangler deploy --dry-run
 NODE_ENV=production bunx opennextjs-cloudflare deploy
 ```
 
-For remote builds, configure the same production publishable key in the build
-system as well. Do not generate a new Clerk instance to repair a missing build
+For Cloudflare Workers Builds, configure the production trigger for `main` with
+the existing `clerk.rayincare.org` publishable key and disable
+`ALLOW_CLERK_TEST_KEYS`. The production-branch build checks the Clerk domain
+and rejects development keys even if the preview override is set. Do not generate a new Clerk instance to repair a missing build
 variable. After deployment, verify `/`, `/sign-in`, and `/api/config` return 200,
 and `/api/conversations` without a visitor cookie returns an empty list.
 Visitor history requires the HttpOnly visitor cookie; account history uses Clerk.
